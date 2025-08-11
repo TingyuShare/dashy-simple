@@ -1,0 +1,249 @@
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    /* overflow: hidden; removed to allow scrolling */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f0f2f5; /* Slightly adjusted background color */
+    color: #333;
+}
+
+#chart-area {
+    width: 100%;
+    height: 100%;
+    min-width: 100vw; /* Ensure it's at least viewport width */
+    min-height: 100vh; /* Ensure it's at least viewport height */
+}
+
+#flowchart-svg {
+    min-width: 100%;
+    min-height: 100%;
+}
+
+.link {
+    stroke: #999;
+    stroke-opacity: 0.6;
+    stroke-width: 2px;
+}
+
+.arrow-marker {
+    fill: #999;
+}
+
+/* Temporary line for relinking */
+.temp-link {
+    stroke: #d62728; /* Red color for temp link */
+    stroke-opacity: 0.8;
+    stroke-width: 2.5px;
+    stroke-dasharray: 5, 5; /* Dashed line */
+}
+
+.node rect {
+    stroke: #fff;
+    stroke-width: 2px;
+    fill: #007bff;
+    cursor: pointer;
+    transition: fill 0.2s;
+    width: 120px; /* Node width */
+    height: 50px; /* Node height */
+}
+
+.node:hover rect {
+    fill: #0056b3;
+}
+
+.node.selected rect {
+    fill: #28a745; /* Green for selected */
+    stroke: #208038;
+}
+
+.node text {
+    font-size: 14px;
+    fill: #fff;
+    text-anchor: middle;
+    dominant-baseline: central; /* Vertical centering */
+    pointer-events: none; /* So the rect receives click events */
+    font-weight: bold;
+}
+
+#details-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 250px;
+    padding: 15px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transition: opacity 0.3s, transform 0.3s;
+    opacity: 1;
+    transform: translateY(0);
+    z-index: 10;
+}
+
+#details-panel.hidden {
+    opacity: 0;
+    transform: translateY(-20px);
+    pointer-events: none;
+}
+
+/* Context Menu Styling */
+.context-menu {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-radius: 4px;
+    padding: 5px 0;
+    z-index: 100;
+}
+
+.context-menu.hidden {
+    display: none;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu ul li {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.context-menu ul li:hover {
+    background-color: #f0f0f0;
+}
+
+/* IO Buttons Styling */
+.io-buttons {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 20;
+    display: flex;
+    gap: 10px;
+}
+
+.io-buttons button {
+    padding: 10px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+#export-btn {
+    background-color: #28a745;
+    color: white;
+}
+#export-btn:hover { background-color: #218838; }
+
+#import-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+#import-btn:hover { background-color: #138496; }
+
+#clear-btn {
+    background-color: #dc3545;
+    color: white;
+}
+#clear-btn:hover { background-color: #c82333; }
+
+#reset-layout-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+#reset-layout-btn:hover { background-color: #e0a800; }
+
+.hidden {
+    display: none;
+}
+
+/* Read-only mode styles */
+body.read-only .io-buttons,
+body.read-only .context-menu {
+    display: none !important;
+}
+
+/* Modal Styling */
+#modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 199;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#modal-overlay.hidden {
+    display: none;
+}
+
+#node-modal {
+    background: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 350px;
+    display: flex;
+    flex-direction: column;
+}
+
+#node-modal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+#node-modal label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#node-modal input, #node-modal textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-buttons button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#modal-save-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+#modal-cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}

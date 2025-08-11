@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flow-action</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="chart-area">
+        <svg id="flowchart-svg"></svg>
+    </div>
+
+    <div id="details-panel" class="hidden">
+        <p id="details-content"></p>
+    </div>
+
+    <!-- Context Menus -->
+    <div id="svg-context-menu" class="context-menu hidden">
+        <ul>
+            <li id="add-node-here">在此处添加节点</li>
+        </ul>
+    </div>
+    <div id="node-context-menu" class="context-menu hidden">
+        <ul>
+            <li id="add-link">添加连接</li>
+            <li id="delete-node">删除节点</li>
+        </ul>
+    </div>
+    
+    <!-- Modal for Node Input -->
+    <div id="modal-overlay" class="hidden">
+        <div id="node-modal">
+            <h2>添加新节点</h2>
+            <label for="modal-node-label">节点名称:</label>
+            <input type="text" id="modal-node-label" placeholder="输入节点名称">
+            <label for="modal-node-details">详细说明:</label>
+            <textarea id="modal-node-details" rows="4" placeholder="输入详细信息"></textarea>
+            <div class="modal-buttons">
+                <button id="modal-save-btn">保存</button>
+                <button id="modal-cancel-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating IO Buttons -->
+    <div class="io-buttons">
+        <button id="clear-btn" title="清空所有节点和连线">清空画布</button>
+        <button id="reset-layout-btn">自动排版</button>
+        <button id="export-btn">导出 JSON</button>
+        <button id="import-btn">导入 JSON</button>
+        <input type="file" id="import-file-input" class="hidden" accept=".json">
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
