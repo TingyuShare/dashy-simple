@@ -1,0 +1,34 @@
+{
+  "groups": [
+    "Search",
+    "Development",
+    "Social",
+    "Tools"
+  ],
+  "items": [
+    {
+      "name": "Google",
+      "url": "https://google.com",
+      "icon": "",
+      "group": "Search"
+    },
+    {
+      "name": "GitHub",
+      "url": "https://github.com",
+      "icon": "",
+      "group": "Development"
+    },
+    {
+      "name": "Twitter",
+      "url": "https://twitter.com",
+      "icon": "",
+      "group": "Social"
+    },
+    {
+      "name": "IT-Tools",
+      "url": "https://it-tools.tech/",
+      "icon": "",
+      "group": "Tools"
+    }
+  ]
+}

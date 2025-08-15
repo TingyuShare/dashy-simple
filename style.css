@@ -1,249 +1,217 @@
-html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    /* overflow: hidden; removed to allow scrolling */
+:root {
+    --bg-color: #1a1a1a;
+    --surface-color: #2c2c2c;
+    --primary-color: #4e8cff;
+    --text-color: #f0f0f0;
+    --border-color: #444;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background-color: #f0f2f5; /* Slightly adjusted background color */
-    color: #333;
-}
-
-#chart-area {
-    width: 100%;
-    height: 100%;
-    min-width: 100vw; /* Ensure it's at least viewport width */
-    min-height: 100vh; /* Ensure it's at least viewport height */
-}
-
-#flowchart-svg {
-    min-width: 100%;
-    min-height: 100%;
-}
-
-.link {
-    stroke: #999;
-    stroke-opacity: 0.6;
-    stroke-width: 2px;
-}
-
-.arrow-marker {
-    fill: #999;
-}
-
-/* Temporary line for relinking */
-.temp-link {
-    stroke: #d62728; /* Red color for temp link */
-    stroke-opacity: 0.8;
-    stroke-width: 2.5px;
-    stroke-dasharray: 5, 5; /* Dashed line */
-}
-
-.node rect {
-    stroke: #fff;
-    stroke-width: 2px;
-    fill: #007bff;
-    cursor: pointer;
-    transition: fill 0.2s;
-    width: 120px; /* Node width */
-    height: 50px; /* Node height */
-}
-
-.node:hover rect {
-    fill: #0056b3;
-}
-
-.node.selected rect {
-    fill: #28a745; /* Green for selected */
-    stroke: #208038;
-}
-
-.node text {
-    font-size: 14px;
-    fill: #fff;
-    text-anchor: middle;
-    dominant-baseline: central; /* Vertical centering */
-    pointer-events: none; /* So the rect receives click events */
-    font-weight: bold;
-}
-
-#details-panel {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 250px;
-    padding: 15px;
-    background-color: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    transition: opacity 0.3s, transform 0.3s;
-    opacity: 1;
-    transform: translateY(0);
-    z-index: 10;
-}
-
-#details-panel.hidden {
-    opacity: 0;
-    transform: translateY(-20px);
-    pointer-events: none;
-}
-
-/* Context Menu Styling */
-.context-menu {
-    position: absolute;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    border-radius: 4px;
-    padding: 5px 0;
-    z-index: 100;
-}
-
-.context-menu.hidden {
-    display: none;
-}
-
-.context-menu ul {
-    list-style: none;
-    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
     margin: 0;
+    padding: 1rem;
 }
 
-.context-menu ul li {
-    padding: 8px 15px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.context-menu ul li:hover {
-    background-color: #f0f0f0;
-}
-
-/* IO Buttons Styling */
-.io-buttons {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 20;
+.controls {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
-.io-buttons button {
-    padding: 10px 15px;
-    font-size: 14px;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
+.control-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+button, input[type="text"], input[type="url"] {
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border-color);
+    background-color: #3a3a3a;
+    color: var(--text-color);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+button {
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    transition: background-color 0.2s, transform 0.2s;
+    background-color: var(--primary-color);
+    border: none;
+    font-weight: 500;
 }
 
-#export-btn {
-    background-color: #28a745;
-    color: white;
-}
-#export-btn:hover { background-color: #218838; }
-
-#import-btn {
-    background-color: #17a2b8;
-    color: white;
-}
-#import-btn:hover { background-color: #138496; }
-
-#clear-btn {
-    background-color: #dc3545;
-    color: white;
-}
-#clear-btn:hover { background-color: #c82333; }
-
-#reset-layout-btn {
-    background-color: #ffc107;
-    color: #212529;
-}
-#reset-layout-btn:hover { background-color: #e0a800; }
-
-.hidden {
-    display: none;
+button:hover {
+    opacity: 0.85;
 }
 
-/* Read-only mode styles */
-body.read-only .io-buttons,
-body.read-only .context-menu {
-    display: none !important;
+#search-box {
+    min-width: 250px;
 }
 
-/* Modal Styling */
-#modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    z-index: 199;
+#tag-filters-container {
+    padding: 0 1rem 1rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-filter {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+}
+
+.tag-filter.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+#dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.dashboard-item {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-color);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+}
+
+.dashboard-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.dashboard-item.selected {
+    box-shadow: 0 0 15px var(--primary-color);
+    border: 1px solid var(--primary-color);
+    transform: scale(1.05);
+}
+
+.add-item-card {
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: transparent;
+    border: 2px dashed var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-#modal-overlay.hidden {
-    display: none;
+.add-item-card:hover {
+    background-color: var(--surface-color);
+    border-color: var(--primary-color);
 }
 
-#node-modal {
-    background: #fff;
-    padding: 25px;
+.add-item-card span {
+    font-size: 4rem;
+    font-weight: 200;
+    color: var(--border-color);
+    transition: color 0.2s ease;
+}
+
+.add-item-card:hover span {
+    color: var(--primary-color);
+}
+
+.dashboard-item img {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.75rem;
+}
+
+.dashboard-item .item-name {
+    font-weight: 600;
+}
+
+.item-tags {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+}
+
+.item-tags .tag {
+    background-color: #444;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+}
+
+.item-actions {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: flex;
+    gap: 5px;
+}
+
+.item-actions button {
+    padding: 2px; 
+    font-size: 12px;
+    background: rgba(0,0,0,0.4);
+    border: none;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+dialog {
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 350px;
+    padding: 2rem;
+    min-width: 400px;
+}
+
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+}
+
+#edit-form {
     display: flex;
     flex-direction: column;
+    gap: 1rem;
 }
 
-#node-modal h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
+#edit-form label {
+    font-weight: 500;
 }
 
-#node-modal label {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-#node-modal input, #node-modal textarea {
+#edit-form input {
     width: 100%;
-    padding: 8px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
     box-sizing: border-box;
+}
+
+#edit-form small {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-top: -0.5rem;
 }
 
 .modal-buttons {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-}
-
-.modal-buttons button {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#modal-save-btn {
-    background-color: #007bff;
-    color: white;
-}
-
-#modal-cancel-btn {
-    background-color: #6c757d;
-    color: white;
+    gap: 1rem;
+    margin-top: 1rem;
 }
