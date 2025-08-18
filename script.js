@@ -80,9 +80,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 itemEnter.append('img')
                     .attr('src', d => {
                         try {
+                            // 优先使用 Google API
                             return d.icon || `https://www.google.com/s2/favicons?domain=${new URL(d.url).hostname}`;
                         } catch (e) {
+                            // 如果 URL 无效，立即返回默认图标
                             return 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>';
+                        }
+                    })
+                    .on('error', function(event, d) {
+                        // `this` 指代图片元素
+                        // 如果主资源加载失败，尝试使用“直连”方案作为备用
+                        const fallbackSrc = `${new URL(d.url).origin}/favicon.ico`;
+                        
+                        // 防止备用资源也失败时产生的无限循环
+                        if (this.src !== fallbackSrc) {
+                            this.src = fallbackSrc;
+                            
+                            // 如果备用资源也失败了，设置最终的默认图标
+                            this.onerror = () => {
+                                this.onerror = null; // 避免循环
+                                this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>';
+                            };
                         }
                     });
 
