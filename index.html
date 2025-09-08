@@ -9,13 +9,27 @@
 </head>
 <body>
 
+
     <header class="controls">
         <div class="control-group">
-            
+            <div id="weatherStatus"></div>
         </div>
+        <div class="control-group">
+             <div id="current-time" style="font-weight:bold;"></div>
+        </div>
+        <div class="control-group">
+            <div id="ip-address" style="font-weight:bold;"></div>
+        </div>
+    </header>
+
+    <header class="controls">
+        <div class="control-group">
+        </div>
+
         <div class="control-group">
             <input type="text" id="search-box" placeholder="Search items...">
         </div>
+
         <div class="control-group">
             <button id="import-btn">Import Config</button>
             <input type="file" id="import-file-input" accept=".json" style="display: none;">

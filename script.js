@@ -281,3 +281,70 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
 
 });
+
+// Update and display current time every second
+function updateTime() {
+  const timeElement = document.getElementById('current-time');
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is zero-based
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  timeElement.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+
+// Fetch and display current IP address using free API
+fetch('https://api.ipify.org?format=json')
+  .then(response => response.json())
+  .then(data => {
+    document.getElementById('ip-address').textContent = data.ip;
+  })
+  .catch(() => {
+    document.getElementById('ip-address').textContent = 'IP address unavailable';
+  });
+
+// 抓取天气信息并显示
+function getUserLocationAndFetchWeather() {
+  if (!navigator.geolocation) {
+    alert('浏览器不支持地理位置获取');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      fetchWeatherByLatLon(lat, lon);
+    },
+    error => {
+      alert('获取地理位置失败，请允许定位权限');
+      console.error(error);
+    }
+  );
+}
+
+async function fetchWeatherByLatLon(lat, lon) {
+  const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=e5986d093d1f9a7b254e22b10d6ade78&units=metric&lang=zh_cn`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const name = data.name;
+    const country = data.sys.country;
+    const description = data.weather[0].description.toLowerCase();
+    document.getElementById('weatherStatus').innerText = `${name}(${country}): ` + description + ' ' + data.main.temp + '°C';
+  } catch(e) {
+    document.getElementById('weatherStatus').innerText = '';
+    console.error(e);
+  }
+}
+
+// 页面加载时调用
+getUserLocationAndFetchWeather();
+
+
