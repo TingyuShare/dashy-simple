@@ -8,29 +8,16 @@
         <link rel="icon" href="icon.svg" type="image/svg+xml">
 </head>
 <body>
-
-
     <header class="controls">
         <div class="control-group">
-            <div id="weatherStatus"></div>
+            <iframe scrolling="no" src="https://widget.tianqiapi.com/?style=tm&skin=pitaya&color=FFFFFF" style="font-weight:bold;" frameborder="0" width="270" height="24" allowtransparency="true"></iframe> 
         </div>
         <div class="control-group">
-             <div id="current-time" style="font-weight:bold;"></div>
-        </div>
-        <div class="control-group">
-            <div id="ip-address" style="font-weight:bold;"></div>
-        </div>
-    </header>
-
-    <header class="controls">
-        <div class="control-group">
-        </div>
-
-        <div class="control-group">
+            <div id="current-time" style="font-weight:bold;"></div>
             <input type="text" id="search-box" placeholder="Search items...">
         </div>
-
         <div class="control-group">
+            <iframe src="https://myip.is/ip.php" width="270" height="24" scrolling="NO" frameborder="0" marginwidth="1" marginheight="1" HSPACE=0 VSPACE=0></iframe>
             <button id="import-btn">Import Config</button>
             <input type="file" id="import-file-input" accept=".json" style="display: none;">
             <button id="export-btn">Export Config</button>
