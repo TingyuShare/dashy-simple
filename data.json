@@ -3,32 +3,37 @@
     "Search",
     "Development",
     "Social",
-    "Tools"
+    "Tools",
+    "Internal"
   ],
   "items": [
     {
       "name": "Google",
       "url": "https://google.com",
       "icon": "",
-      "group": "Search"
+      "group": "Search",
+      "type": "link"
     },
     {
       "name": "GitHub",
       "url": "https://github.com",
       "icon": "",
-      "group": "Development"
+      "group": "Development",
+      "type": "link"
     },
     {
-      "name": "Twitter",
-      "url": "https://twitter.com",
-      "icon": "",
-      "group": "Social"
+      "name": "Wikipedia",
+      "url": "https://www.wikipedia.org/",
+      "icon": "📖",
+      "group": "Internal",
+      "type": "iframe"
     },
     {
-      "name": "IT-Tools",
-      "url": "https://it-tools.tech/",
-      "icon": "",
-      "group": "Tools"
+      "name": "Google Auth",
+      "url": "https://www.google.com",
+      "icon": "G",
+      "group": "Internal",
+      "type": "auth"
     }
   ]
 }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hi Smile</title>
     <link rel="stylesheet" href="style.css">
-        <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
 </head>
 <body>
     <header class="controls">
@@ -32,21 +32,38 @@
         <!-- D3.js will render dashboard items here -->
     </main>
 
+    <div id="dock-container"></div>
+    <!-- Iframe container from our previous project -->
+    <div id="iframe-container"></div>
+
     <dialog id="edit-modal">
         <form id="edit-form">
             <h2>Edit Link</h2>
             <input type="hidden" id="edit-index">
+            
             <label for="edit-name">Name:</label>
             <input type="text" id="edit-name" required>
-            <label for="edit-url">URL:</label>
-            <input type="url" id="edit-url" required>
-            <label for="edit-icon">Icon URL (optional):</label>
+            
+            <label for="edit-url">URL / Src:</label>
+            <input type="text" id="edit-url" required>
+
+            <!-- New field for selecting item type -->
+            <label for="edit-type-select">Open Type:</label>
+            <select id="edit-type-select">
+                <option value="link">Link (New Tab)</option>
+                <option value="iframe">Iframe Window</option>
+                <option value="auth">Auth Popup</option>
+            </select>
+            
+            <label for="edit-icon">Icon URL / Emoji (optional):</label>
             <input type="text" id="edit-icon">
             <small>If empty, favicon will be fetched automatically.</small>
+            
             <label for="edit-tag-select">Group:</label>
             <select id="edit-tag-select" required>
                 <!-- Options will be populated by JS -->
             </select>
+            
             <div class="modal-buttons">
                 <button type="submit">Save</button>
                 <button type="button" id="cancel-btn">Cancel</button>

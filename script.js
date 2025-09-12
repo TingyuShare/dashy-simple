@@ -1,175 +1,165 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- DOM Elements ---
-    const dashboard = d3.select('#dashboard');
+    const gridDashboard = d3.select('#dashboard');
+    const dockContainer = d3.select('#dock-container');
+    const iframeContainer = d3.select('#iframe-container');
     const searchBox = d3.select('#search-box');
     const groupFiltersContainer = d3.select('#tag-filters-container');
-    const importBtn = d3.select('#import-btn');
-    const importFileInput = d3.select('#import-file-input');
-    const exportBtn = d3.select('#export-btn');
     const modal = document.getElementById('edit-modal');
     const modalForm = document.getElementById('edit-form');
     const cancelBtn = d3.select('#cancel-btn');
     const groupSelect = d3.select('#edit-tag-select');
+    const importBtn = d3.select('#import-btn');
+    const importFileInput = d3.select('#import-file-input');
+    const exportBtn = d3.select('#export-btn');
 
     // --- App State ---
     let appData = { items: [], groups: [] };
     let activeGroupFilter = null;
-    let selectedItem = null;
+    let activeIframeId = null;
+    let authPopup = null;
 
-    // --- Core Functions ---
-
-    /**
-     * Main render function. Calls all sub-renderers.
-     */
+    // --- Core Rendering ---
     function render() {
-        renderDashboardItems();
+        renderItems();
         renderGroupFilters();
         populateGroupSelect();
     }
 
-    /**
-     * Renders the dashboard items and the "Add" card.
-     */
-    function renderDashboardItems() {
+    function renderItems() {
         const searchTerm = searchBox.node().value.toLowerCase();
+        const filteredItems = appData.items.filter(item => 
+            (!activeGroupFilter || item.group === activeGroupFilter) &&
+            (item.name.toLowerCase().includes(searchTerm) || (item.group && item.group.toLowerCase().includes(searchTerm)))
+        );
 
-        const filteredItems = appData.items.filter(item => {
-            const matchesGroup = !activeGroupFilter || item.group === activeGroupFilter;
-            const matchesSearch = item.name.toLowerCase().includes(searchTerm) || (item.group && item.group.toLowerCase().includes(searchTerm));
-            return matchesGroup && matchesSearch;
-        });
+        const gridItems = filteredItems.filter(d => (d.type || 'link') === 'link');
+        const dockItems = filteredItems.filter(d => d.type === 'iframe' || d.type === 'auth');
 
-        const renderData = [...filteredItems, { isAddButton: true }];
-
-        dashboard.selectAll('.dashboard-item, .add-item-card')
-            .data(renderData, d => d.isAddButton ? '__add_button__' : d.name)
-            .join(enter => {
-                const enterSelection = enter.append(d => d.isAddButton ? document.createElement('div') : document.createElement('a'));
-
-                // Configure the "Add" button card
-                enterSelection.filter(d => d.isAddButton)
-                    .attr('class', 'add-item-card')
-                    .on('click', () => openModal())
-                    .append('span').text('+');
-
-                // Configure the regular item cards
-                const itemEnter = enterSelection.filter(d => !d.isAddButton);
-                itemEnter
-                    .attr('class', 'dashboard-item')
-                    .attr('href', d => d.url)
-                    .attr('target', '_blank')
-                    .on('contextmenu', (event, d) => {
-                        event.preventDefault();
-                        if (!selectedItem) {
-                            selectedItem = d;
-                        } else {
-                            const targetItem = d;
-                            if (targetItem !== selectedItem) {
-                                const oldIndex = appData.items.indexOf(selectedItem);
-                                const newIndex = appData.items.indexOf(targetItem);
-                                appData.items.splice(oldIndex, 1);
-                                appData.items.splice(newIndex, 0, selectedItem);
-                                saveData(true);
-                            }
-                            selectedItem = null;
-                        }
-                        renderDashboardItems();
-                    });
-                
-                itemEnter.append('img')
-                    .attr('src', d => {
-                        try {
-                            // 优先使用 Google API
-                            return d.icon || `https://www.google.com/s2/favicons?domain=${new URL(d.url).hostname}`;
-                        } catch (e) {
-                            // 如果 URL 无效，立即返回默认图标
-                            return 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>';
-                        }
-                    })
-                    .on('error', function(event, d) {
-                        // `this` 指代图片元素
-                        // 如果主资源加载失败，尝试使用“直连”方案作为备用
-                        const fallbackSrc = `${new URL(d.url).origin}/favicon.ico`;
-                        
-                        // 防止备用资源也失败时产生的无限循环
-                        if (this.src !== fallbackSrc) {
-                            this.src = fallbackSrc;
-                            
-                            // 如果备用资源也失败了，设置最终的默认图标
-                            this.onerror = () => {
-                                this.onerror = null; // 避免循环
-                                this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>';
-                            };
-                        }
-                    });
-
-                itemEnter.append('span')
-                    .attr('class', 'item-name')
-                    .text(d => d.name);
-
-                const group = itemEnter.append('div').attr('class', 'item-tags');
-                group.append('span').attr('class', 'tag').text(d => d.group);
-
-                const actions = itemEnter.append('div').attr('class', 'item-actions');
-                actions.append('button').text('✏️').on('click', (e, d) => {
-                    e.preventDefault();
-                    openModal(d);
-                });
-                actions.append('button').text('🗑️').on('click', (e, d) => {
-                    e.preventDefault();
-                    deleteItem(d);
-                });
-
-                return enterSelection;
-            })
-            .classed('selected', d => d === selectedItem);
+        renderGrid(gridItems);
+        renderDock(dockItems);
     }
 
-    /**
-     * Renders the group filter buttons.
-     */
-    function renderGroupFilters() {
-        const allGroups = ['All', ...appData.groups];
-        
-        groupFiltersContainer.selectAll('.tag-filter')
-            .data(allGroups)
-            .join('button')
-            .attr('class', 'tag-filter')
-            .classed('active', d => d === (activeGroupFilter || 'All'))
-            .text(d => d)
-            .on('click', (e, d) => {
-                activeGroupFilter = (d === 'All') ? null : d;
-                render();
+    function renderGrid(data) {
+        const renderData = [...data, { isAddButton: true }];
+        gridDashboard.selectAll('.dashboard-item, .add-item-card').data(renderData, d => d.isAddButton ? '__add_grid__' : d.url)
+            .join(enter => {
+                const enterSelection = enter.append(d => d.isAddButton ? document.createElement('div') : document.createElement('a'));
+                enterSelection.filter(d => d.isAddButton).attr('class', 'add-item-card').on('click', () => openModal(null, 'grid')).append('span').text('+');
+                const itemEnter = enterSelection.filter(d => !d.isAddButton).attr('class', 'dashboard-item').attr('href', d => d.url).attr('target', '_blank');
+                itemEnter.append('img').attr('src', d => d.icon || `https://www.google.com/s2/favicons?domain=${new URL(d.url).hostname}`).on('error', function() { this.src = 'icon.svg'; });
+                itemEnter.append('span').attr('class', 'item-name').text(d => d.name);
+                itemEnter.append('div').attr('class', 'item-tags').append('span').attr('class', 'tag').text(d => d.group);
+                const actions = itemEnter.append('div').attr('class', 'item-actions');
+                actions.append('button').text('✏️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); openModal(d); });
+                actions.append('button').text('🗑️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
+                return enterSelection;
             });
     }
 
-    /**
-     * Populates the select dropdown in the modal with groups.
-     */
-    function populateGroupSelect() {
-        groupSelect.selectAll('option').remove();
+    function renderDock(data) {
+        dockContainer.html(''); // Clear previous icons
+        const renderData = [...data, { isAddButton: true }]; // Add special item for '+' button
 
-        groupSelect.selectAll('option')
-            .data(appData.groups)
-            .join('option')
-            .attr('value', d => d)
-            .text(d => d);
+        renderData.forEach(d => {
+            const iconDiv = dockContainer.append('div').attr('class', 'dock-icon');
+
+            if (d.isAddButton) {
+                // Logic for the ADD button
+                iconDiv.html('+').on('click', () => openModal(null, 'dock'));
+            } else {
+                // Logic for REAL data icons
+                iconDiv.classed('active', d.url === activeIframeId)
+                       .on('click', function() { handleSpecialClick(d, this); });
+
+                iconDiv.append('span').html(d.icon || '❓');
+
+                const actions = iconDiv.append('div').attr('class', 'item-actions');
+                actions.append('button').text('✏️').on('click', (e) => {
+                    e.stopPropagation();
+                    openModal(d);
+                });
+                actions.append('button').text('🗑️').on('click', (e) => {
+                    e.stopPropagation();
+                    deleteItem(d);
+                });
+            }
+        });
     }
 
-    // --- Helper Functions ---
+    // --- Other Functions ---
+    function handleSpecialClick(d, element) {
+        if (d.type === 'iframe') toggleIframe(d.url);
+        else if (d.type === 'auth') handleAuthClick(d);
+    }
 
-    function openModal(item = null) {
+    function toggleIframe(url) {
+        const wasActive = (url === activeIframeId);
+        iframeContainer.selectAll('*').remove();
+        if (!wasActive) {
+            activeIframeId = url;
+            iframeContainer.append('iframe').attr('class', 'content-iframe visible').attr('src', url).attr('frameborder', '0');
+        } else {
+            activeIframeId = null;
+        }
+        render();
+    }
+
+    function handleAuthClick(d) {
+        const isPopupOpen = authPopup && !authPopup.closed;
+        if (activeIframeId) { activeIframeId = null; render(); }
+        if (isPopupOpen) {
+            authPopup.close();
+        } else {
+            let pW = window.innerWidth * 0.8, pH = window.innerHeight * 0.7, maxW = 1200;
+            if (pW > maxW) pW = maxW;
+            const left = (window.screen.width / 2) - (pW / 2), top = (window.screen.height / 2) - (pH / 2);
+            authPopup = window.open(d.url, 'authPopup', `width=${pW},height=${pH},top=${top},left=${left}`);
+        }
+    }
+
+    function renderGroupFilters() {
+        const allGroups = ['All', ...appData.groups];
+        groupFiltersContainer.selectAll('.tag-filter').data(allGroups).join('button')
+            .attr('class', 'tag-filter').classed('active', d => d === (activeGroupFilter || 'All'))
+            .text(d => d).on('click', (e, d) => { activeGroupFilter = (d === 'All') ? null : d; render(); });
+    }
+
+    function populateGroupSelect() {
+        groupSelect.selectAll('option').remove();
+        groupSelect.selectAll('option').data(appData.groups).join('option').attr('value', d => d).text(d => d);
+    }
+
+    function openModal(item = null, context = 'grid') {
         modalForm.reset();
         populateGroupSelect();
+        const typeSelect = document.getElementById('edit-type-select');
+        typeSelect.innerHTML = ''; // Clear previous options
+
         if (item) {
+            // EDITING: Show all options
+            typeSelect.add(new Option('Link (New Tab)', 'link'));
+            typeSelect.add(new Option('Iframe Window', 'iframe'));
+            typeSelect.add(new Option('Auth Popup', 'auth'));
+            // Set form fields from item
             document.getElementById('edit-index').value = appData.items.indexOf(item);
             document.getElementById('edit-name').value = item.name;
             document.getElementById('edit-url').value = item.url;
             document.getElementById('edit-icon').value = item.icon || '';
+            typeSelect.value = item.type || 'link';
             document.getElementById('edit-tag-select').value = item.group;
         } else {
+            // ADDING: Limit options based on context
             document.getElementById('edit-index').value = -1;
+            if (context === 'grid') {
+                typeSelect.add(new Option('Link (New Tab)', 'link'));
+                typeSelect.value = 'link';
+            } else { // context === 'dock'
+                typeSelect.add(new Option('Iframe Window', 'iframe'));
+                typeSelect.add(new Option('Auth Popup', 'auth'));
+                typeSelect.value = 'iframe'; // Default to iframe for dock
+            }
         }
         modal.showModal();
     }
@@ -177,125 +167,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function deleteItem(itemToDelete) {
         if (confirm(`Are you sure you want to delete "${itemToDelete.name}"?`)) {
             appData.items = appData.items.filter(item => item !== itemToDelete);
-            saveData(true);
-            render();
+            saveData(true); render();
         }
     }
 
     function saveData(silent = false) {
         localStorage.setItem('dashboardData', JSON.stringify(appData));
-        if (!silent) {
-            alert('Changes saved successfully!');
-        }
+        if (!silent) alert('Changes saved successfully!');
     }
 
     async function loadData() {
         const savedData = localStorage.getItem('dashboardData');
-        if (savedData) {
-            appData = JSON.parse(savedData);
-        } else {
-            try {
-                const response = await fetch('data.json');
-                appData = await response.json();
-            } catch (error) {
-                console.error('Error loading default data:', error);
-                appData = { items: [], groups: [] };
-            }
-        }
+        if (savedData) { appData = JSON.parse(savedData); }
+        else { try { const res = await fetch('data.json'); appData = await res.json(); } catch (e) { appData = { items: [], groups: [] }; } }
         render();
     }
 
     // --- Event Listeners ---
-    searchBox.on('input', renderDashboardItems);
+    searchBox.on('input', render);
     cancelBtn.on('click', () => modal.close());
-
     modalForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = document.getElementById('edit-name').value;
-        const url = document.getElementById('edit-url').value;
-        const icon = document.getElementById('edit-icon').value;
-        const group = document.getElementById('edit-tag-select').value;
+        const newItem = { name: document.getElementById('edit-name').value, url: document.getElementById('edit-url').value, icon: document.getElementById('edit-icon').value, type: document.getElementById('edit-type-select').value, group: document.getElementById('edit-tag-select').value };
         const index = document.getElementById('edit-index').value;
-
-        const newItem = { name, url, icon, group };
-
-        if (index > -1) {
-            appData.items[index] = newItem;
-        } else {
-            appData.items.push(newItem);
-        }
-        saveData(true);
-        render();
-        modal.close();
+        if (index > -1) { appData.items[index] = newItem; } else { appData.items.push(newItem); }
+        saveData(true); render(); modal.close();
     });
+    exportBtn.on('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' })); a.download = 'dashboard-config.json'; a.click(); URL.revokeObjectURL(a.href); });
+    importBtn.on('click', () => importFileInput.node().click());
+    importFileInput.on('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const importedData = JSON.parse(e.target.result); if (importedData.items && importedData.groups) { appData = importedData; saveData(true); render(); alert('Success!'); } else { alert('Invalid file.'); } } catch (error) { alert('Error parsing file.'); } }; reader.readAsText(file); });
+    window.addEventListener('message', (event) => { if (event.data && event.data.authSuccess) { if (authPopup) authPopup.close(); } }, false);
 
-    exportBtn.on('click', () => {
-        const dataStr = JSON.stringify(appData, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'dashboard-config.json';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
-
-    importBtn.on('click', () => {
-        importFileInput.node().click();
-    });
-
-    importFileInput.on('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                if (importedData.items && importedData.groups) {
-                    appData = importedData;
-                    saveData(true);
-                    render();
-                    alert('Configuration imported successfully!');
-                } else {
-                    alert('Invalid file format.');
-                }
-            } catch (error) {
-                alert('Error parsing file.');
-                console.error('Import error:', error);
-            }
-        };
-        reader.readAsText(file);
-    });
-
-    d3.select('body').on('click', function(event) {
-        if (event.target.tagName === 'BODY' || event.target.tagName === 'MAIN') {
-            if (selectedItem) {
-                selectedItem = null;
-                renderDashboardItems();
-            }
-        }
-    });
-
-    // --- Initial Load ---
     loadData();
-
 });
 
-// Update and display current time every second
 function updateTime() {
-  const timeElement = document.getElementById('current-time');
+  const timeElement = document.getElementById('current-time'); if (!timeElement) return;
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is zero-based
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  
-  timeElement.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  timeElement.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}` + ` ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 }
-setInterval(updateTime, 1000);
-updateTime();
-
-
+setInterval(updateTime, 1000); updateTime();
