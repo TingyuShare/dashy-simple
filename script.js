@@ -92,6 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 iconDiv.classed('active', d.url === activeIframeId).on('click', function() { handleSpecialClick(d, this); });
                 iconDiv.append('span').html(d.icon || '❓');
+                
+                const iframeExists = !iframeContainer.select(`iframe[src="${d.url}"]`).empty();
+                if (d.playsAudio && iframeExists) {
+                    iconDiv.classed('playing-audio', true);
+                }
+
                 const actions = iconDiv.append('div').attr('class', 'item-actions');
                 actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
                 actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(d); });
@@ -221,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('edit-icon').value = item.icon || '';
             typeSelect.value = item.type || 'link';
             document.getElementById('edit-tag-select').value = item.group;
+            document.getElementById('edit-plays-audio').checked = item.playsAudio || false;
         } else {
             document.getElementById('edit-index').value = -1;
             if (context === 'grid') {
@@ -266,7 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelBtn.on('click', () => modal.close());
     modalForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const newItem = { name: document.getElementById('edit-name').value, url: document.getElementById('edit-url').value, icon: document.getElementById('edit-icon').value, type: document.getElementById('edit-type-select').value, group: document.getElementById('edit-tag-select').value };
+        const newItem = { 
+            name: document.getElementById('edit-name').value, 
+            url: document.getElementById('edit-url').value, 
+            icon: document.getElementById('edit-icon').value, 
+            type: document.getElementById('edit-type-select').value, 
+            group: document.getElementById('edit-tag-select').value,
+            playsAudio: document.getElementById('edit-plays-audio').checked
+        };
         const index = document.getElementById('edit-index').value;
         if (index > -1) { appData.items[index] = newItem; } else { appData.items.push(newItem); }
         saveData(true); render(); modal.close();

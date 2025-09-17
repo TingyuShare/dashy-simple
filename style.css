@@ -303,3 +303,23 @@ dialog::backdrop {
 body.item-picked-up .dashboard-item:not(.picked-up):hover {
     border: 2px dashed var(--primary-color);
 }
+
+.dock-icon.playing-audio > span {
+    animation: spin 2s linear infinite;
+    display: inline-block; /* Needed for transform to work on a span */
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.form-row input[type="checkbox"] {
+    width: auto;
+}
