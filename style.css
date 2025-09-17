@@ -293,3 +293,13 @@ dialog::backdrop {
     transform: translateY(-5px) scale(1.05);
     background-color: var(--primary-color);
 }
+
+.dashboard-item.picked-up {
+    background-color: var(--primary-color);
+    transform: scale(1.05);
+    border: 1px solid var(--primary-color);
+}
+
+body.item-picked-up .dashboard-item:not(.picked-up):hover {
+    border: 2px dashed var(--primary-color);
+}

@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeGroupFilter = null;
     let activeIframeId = null;
     let authPopup = null;
+    let pickedUpItemElement = null;
+    let pickedUpItemData = null;
 
     // --- Core Rendering ---
     function render() {
@@ -46,46 +48,103 @@ document.addEventListener('DOMContentLoaded', () => {
         gridDashboard.selectAll('.dashboard-item, .add-item-card').data(renderData, d => d.isAddButton ? '__add_grid__' : d.url)
             .join(enter => {
                 const enterSelection = enter.append(d => d.isAddButton ? document.createElement('div') : document.createElement('a'));
-                enterSelection.filter(d => d.isAddButton).attr('class', 'add-item-card').on('click', () => openModal(null, 'grid')).append('span').text('+');
-                const itemEnter = enterSelection.filter(d => !d.isAddButton).attr('class', 'dashboard-item').attr('href', d => d.url).attr('target', '_blank');
+                
+                enterSelection.filter(d => d.isAddButton)
+                    .attr('class', 'add-item-card')
+                    .on('click', () => openModal(null, 'grid'))
+                    .append('span').text('+');
+
+                const itemEnter = enterSelection.filter(d => !d.isAddButton)
+                    .attr('class', 'dashboard-item')
+                    .attr('href', d => d.url)
+                    .attr('target', '_blank')
+                    .on('contextmenu', (e, d) => {
+                        e.preventDefault();
+                        pickupItem(e.currentTarget, d);
+                    })
+                    .on('click', (e, d) => {
+                        if (pickedUpItemData) {
+                            e.preventDefault();
+                            dropItem(d);
+                        }
+                    });
+
                 itemEnter.append('img').attr('src', d => d.icon || `https://www.google.com/s2/favicons?domain=${new URL(d.url).hostname}`).on('error', function() { this.src = 'icon.svg'; });
                 itemEnter.append('span').attr('class', 'item-name').text(d => d.name);
                 itemEnter.append('div').attr('class', 'item-tags').append('span').attr('class', 'tag').text(d => d.group);
+                
                 const actions = itemEnter.append('div').attr('class', 'item-actions');
                 actions.append('button').text('✏️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); openModal(d); });
                 actions.append('button').text('🗑️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
+                
                 return enterSelection;
             });
     }
 
     function renderDock(data) {
-        dockContainer.html(''); // Clear previous icons
-        const renderData = [...data, { isAddButton: true }]; // Add special item for '+' button
+        dockContainer.html('');
+        const renderData = [...data, { isAddButton: true }];
 
         renderData.forEach(d => {
             const iconDiv = dockContainer.append('div').attr('class', 'dock-icon');
-
             if (d.isAddButton) {
-                // Logic for the ADD button
                 iconDiv.html('+').on('click', () => openModal(null, 'dock'));
             } else {
-                // Logic for REAL data icons
-                iconDiv.classed('active', d.url === activeIframeId)
-                       .on('click', function() { handleSpecialClick(d, this); });
-
+                iconDiv.classed('active', d.url === activeIframeId).on('click', function() { handleSpecialClick(d, this); });
                 iconDiv.append('span').html(d.icon || '❓');
-
                 const actions = iconDiv.append('div').attr('class', 'item-actions');
-                actions.append('button').text('✏️').on('click', (e) => {
-                    e.stopPropagation();
-                    openModal(d);
-                });
-                actions.append('button').text('🗑️').on('click', (e) => {
-                    e.stopPropagation();
-                    deleteItem(d);
-                });
+                actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
+                actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(d); });
             }
         });
+    }
+
+    // --- Sorting Functions ---
+    function pickupItem(element, data) {
+        if (pickedUpItemElement) {
+            pickedUpItemElement.classList.remove('picked-up');
+        }
+
+        if (pickedUpItemElement === element) {
+            pickedUpItemElement = null;
+            pickedUpItemData = null;
+            document.body.classList.remove('item-picked-up');
+        } else {
+            pickedUpItemElement = element;
+            pickedUpItemData = data;
+            element.classList.add('picked-up');
+            document.body.classList.add('item-picked-up');
+        }
+    }
+
+    function dropItem(targetItemData) {
+        if (!pickedUpItemData || !targetItemData || pickedUpItemData.url === targetItemData.url) {
+            if (pickedUpItemElement) {
+                pickedUpItemElement.classList.remove('picked-up');
+            }
+            pickedUpItemElement = null;
+            pickedUpItemData = null;
+            document.body.classList.remove('item-picked-up');
+            return;
+        }
+
+        const fromIndex = appData.items.findIndex(item => item.url === pickedUpItemData.url);
+        const toIndex = appData.items.findIndex(item => item.url === targetItemData.url);
+
+        if (fromIndex > -1 && toIndex > -1) {
+            const [item] = appData.items.splice(fromIndex, 1);
+            appData.items.splice(toIndex, 0, item);
+        }
+
+        if (pickedUpItemElement) {
+            pickedUpItemElement.classList.remove('picked-up');
+        }
+        pickedUpItemElement = null;
+        pickedUpItemData = null;
+        document.body.classList.remove('item-picked-up');
+
+        saveData(true);
+        render();
     }
 
     // --- Other Functions ---
@@ -135,14 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
         modalForm.reset();
         populateGroupSelect();
         const typeSelect = document.getElementById('edit-type-select');
-        typeSelect.innerHTML = ''; // Clear previous options
+        typeSelect.innerHTML = '';
 
         if (item) {
-            // EDITING: Show all options
             typeSelect.add(new Option('Link (New Tab)', 'link'));
             typeSelect.add(new Option('Iframe Window', 'iframe'));
             typeSelect.add(new Option('Auth Popup', 'auth'));
-            // Set form fields from item
             document.getElementById('edit-index').value = appData.items.indexOf(item);
             document.getElementById('edit-name').value = item.name;
             document.getElementById('edit-url').value = item.url;
@@ -150,15 +207,14 @@ document.addEventListener('DOMContentLoaded', () => {
             typeSelect.value = item.type || 'link';
             document.getElementById('edit-tag-select').value = item.group;
         } else {
-            // ADDING: Limit options based on context
             document.getElementById('edit-index').value = -1;
             if (context === 'grid') {
                 typeSelect.add(new Option('Link (New Tab)', 'link'));
                 typeSelect.value = 'link';
-            } else { // context === 'dock'
+            } else {
                 typeSelect.add(new Option('Iframe Window', 'iframe'));
                 typeSelect.add(new Option('Auth Popup', 'auth'));
-                typeSelect.value = 'iframe'; // Default to iframe for dock
+                typeSelect.value = 'iframe';
             }
         }
         modal.showModal();
