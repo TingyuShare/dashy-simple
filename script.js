@@ -155,14 +155,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function toggleIframe(url) {
         const wasActive = (url === activeIframeId);
-        iframeContainer.selectAll('*').remove();
+
+        // Hide all iframes
+        iframeContainer.selectAll('iframe').classed('visible', false);
+
         if (!wasActive) {
             activeIframeId = url;
-            iframeContainer.append('iframe').attr('class', 'content-iframe visible').attr('src', url).attr('frameborder', '0');
+            let iframe = iframeContainer.select(`iframe[src="${url}"]`);
+            if (iframe.empty()) {
+                // Iframe doesn't exist, create it
+                iframeContainer.append('iframe')
+                    .attr('class', 'content-iframe visible')
+                    .attr('src', url)
+                    .attr('frameborder', '0');
+            } else {
+                // Iframe exists, just show it
+                iframe.classed('visible', true);
+            }
         } else {
+            // If it was active, we've already hidden it. So just deactivate it.
             activeIframeId = null;
         }
-        render();
+        
+        render(); // To update the dock icon's active state
     }
 
     function handleAuthClick(d) {
@@ -222,8 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function deleteItem(itemToDelete) {
         if (confirm(`Are you sure you want to delete "${itemToDelete.name}"?`)) {
+            if (itemToDelete.type === 'iframe') {
+                iframeContainer.select(`iframe[src="${itemToDelete.url}"]`).remove();
+                if (activeIframeId === itemToDelete.url) {
+                    activeIframeId = null;
+                }
+            }
             appData.items = appData.items.filter(item => item !== itemToDelete);
-            saveData(true); render();
+            saveData(true);
+            render();
         }
     }
 
