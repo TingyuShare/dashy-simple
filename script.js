@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const feedContent = feedContainer.append('div').attr('class', 'rss-content');
             feedContent.text('Loading...');
 
-            fetch(feed.url)
+            fetch(`https://corsproxy.io/${feed.url}`)
                 .then(response => response.text())
                 .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
                 .then(data => {
