@@ -323,3 +323,63 @@ body.item-picked-up .dashboard-item:not(.picked-up):hover {
 .form-row input[type="checkbox"] {
     width: auto;
 }
+
+/* --- RSS Feed Styles --- */
+#rss-feeds {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.rss-feed {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+}
+
+.rss-feed h2 {
+    margin-top: 0;
+}
+
+.rss-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.rss-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.rss-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.rss-item h3 a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.rss-item p {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.rss-date {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.rss-feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rss-feed-header .item-actions {
+    position: static;
+}

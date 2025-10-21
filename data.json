@@ -4,7 +4,8 @@
     "Development",
     "Social",
     "Tools",
-    "Internal"
+    "Internal",
+    "RSS"
   ],
   "items": [
     {
@@ -34,6 +35,13 @@
       "icon": "G",
       "group": "Internal",
       "type": "auth"
+    },
+    {
+      "name": "GitHub Blog",
+      "url": "https://github.blog/feed/",
+      "icon": "",
+      "group": "RSS",
+      "type": "rss"
     }
   ]
 }

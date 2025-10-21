@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridDashboard = d3.select('#dashboard');
     const dockContainer = d3.select('#dock-container');
     const iframeContainer = d3.select('#iframe-container');
+    const rssFeeds = d3.select('#rss-feeds');
     const searchBox = d3.select('#search-box');
     const groupFiltersContainer = d3.select('#tag-filters-container');
     const modal = document.getElementById('edit-modal');
@@ -38,13 +39,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const gridItems = filteredItems.filter(d => (d.type || 'link') === 'link');
         const dockItems = filteredItems.filter(d => d.type === 'iframe' || d.type === 'auth');
+        const rssItems = filteredItems.filter(d => d.type === 'rss');
 
         renderGrid(gridItems);
         renderDock(dockItems);
+        renderRssFeeds(rssItems);
     }
 
     function renderGrid(data) {
-        const renderData = [...data, { isAddButton: true }];
+        const renderData = activeGroupFilter === 'RSS' ? data : [...data, { isAddButton: true }];
         gridDashboard.selectAll('.dashboard-item, .add-item-card').data(renderData, d => d.isAddButton ? '__add_grid__' : d.url)
             .join(enter => {
                 const enterSelection = enter.append(d => d.isAddButton ? document.createElement('div') : document.createElement('a'));
@@ -102,6 +105,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
                 actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(d); });
             }
+        });
+    }
+
+    function renderRssFeeds(data) {
+        rssFeeds.html('');
+        data.forEach(feed => {
+            const feedContainer = rssFeeds.append('div').attr('class', 'rss-feed');
+            const feedHeader = feedContainer.append('div').attr('class', 'rss-feed-header');
+            feedHeader.append('h2').text(feed.name);
+            const actions = feedHeader.append('div').attr('class', 'item-actions');
+            actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(feed); });
+
+            const feedContent = feedContainer.append('div').attr('class', 'rss-content');
+            feedContent.text('Loading...');
+
+            fetch(feed.url)
+                .then(response => response.text())
+                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                .then(data => {
+                    feedContent.html('');
+                    const items = data.querySelectorAll("item, entry");
+                    items.forEach(el => {
+                        const isAtom = el.tagName === 'entry';
+                        const title = el.querySelector("title").textContent;
+                        const link = isAtom ? el.querySelector("link").getAttribute('href') : el.querySelector("link").textContent;
+                        const pubDate = el.querySelector(isAtom ? "updated" : "pubDate") ? new Date(el.querySelector(isAtom ? "updated" : "pubDate").textContent).toLocaleDateString() : '';
+
+                        const item = feedContent.append('div').attr('class', 'rss-item');
+                        item.append('h3').append('a').attr('href', link).attr('target', '_blank').text(title);
+                        item.append('span').attr('class', 'rss-date').text(pubDate);
+                    });
+                })
+                .catch(err => {
+                    feedContent.text('Error loading feed.');
+                    console.error(err);
+                });
         });
     }
 
@@ -221,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             typeSelect.add(new Option('Link (New Tab)', 'link'));
             typeSelect.add(new Option('Iframe Window', 'iframe'));
             typeSelect.add(new Option('Auth Popup', 'auth'));
+            typeSelect.add(new Option('RSS Feed', 'rss'));
             document.getElementById('edit-index').value = appData.items.indexOf(item);
             document.getElementById('edit-name').value = item.name;
             document.getElementById('edit-url').value = item.url;
@@ -233,11 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (context === 'grid') {
                 typeSelect.add(new Option('Link (New Tab)', 'link'));
                 typeSelect.value = 'link';
-            } else {
+            } else if (context === 'dock') {
                 typeSelect.add(new Option('Iframe Window', 'iframe'));
                 typeSelect.add(new Option('Auth Popup', 'auth'));
                 typeSelect.value = 'iframe';
             }
+            typeSelect.add(new Option('RSS Feed', 'rss'));
         }
         modal.showModal();
     }
@@ -299,3 +340,4 @@ function updateTime() {
   timeElement.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}` + ` ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 }
 setInterval(updateTime, 1000); updateTime();
+
