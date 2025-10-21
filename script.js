@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const feedHeader = feedContainer.append('div').attr('class', 'rss-feed-header');
             feedHeader.append('h2').text(feed.name);
             const actions = feedHeader.append('div').attr('class', 'item-actions');
+            actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(feed); });
             actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(feed); });
 
             const feedContent = feedContainer.append('div').attr('class', 'rss-content');
