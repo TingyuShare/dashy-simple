@@ -365,6 +365,118 @@ document.addEventListener('DOMContentLoaded', () => {
     importFileInput.on('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const importedData = JSON.parse(e.target.result); if (importedData.items && importedData.groups) { appData = importedData; saveData(true); render(); alert('Success!'); } else { alert('Invalid file.'); } } catch (error) { alert('Error parsing file.'); } }; reader.readAsText(file); });
     window.addEventListener('message', (event) => { if (event.data && event.data.authSuccess) { if (authPopup) authPopup.close(); } }, false);
 
+    // --- Theme Switcher (v3) ---
+    const lightThemeStyles = `
+        body.light-mode {
+            --bg-color: #f0f0f0;
+            --surface-color: #ffffff;
+            --primary-color: #007bff;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+        }
+        body.light-mode button,
+        body.light-mode input[type="text"],
+        body.light-mode input[type="url"],
+        body.light-mode select {
+            background-color: #f8f9fa;
+        }
+        body.light-mode .tag-filter {
+            background-color: #f8f9fa;
+            color: var(--text-color);
+        }
+        body.light-mode .tag-filter.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+        body.light-mode .item-tags .tag {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        body.light-mode #dock-container {
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        body.light-mode .dock-icon {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: var(--text-color);
+        }
+        body.light-mode .dock-icon:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        body.light-mode .dock-icon.active {
+            color: #fff;
+        }
+        body.light-mode .add-item-card:hover {
+            background-color: #f8f9fa;
+        }
+        body.light-mode .item-actions button {
+            background: rgba(255,255,255,0.5);
+            color: #000;
+        }
+    `;
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = lightThemeStyles;
+    document.head.appendChild(styleSheet);
+
+    const themeToggleBtn = document.createElement('button');
+    themeToggleBtn.id = 'theme-toggle-btn';
+    
+    const exportBtnRef = document.getElementById('export-btn');
+    if (exportBtnRef && exportBtnRef.parentNode) {
+        exportBtnRef.parentNode.insertBefore(themeToggleBtn, exportBtnRef.nextSibling);
+    } else {
+        // Fallback for safety
+        document.body.appendChild(themeToggleBtn);
+    }
+
+    const themeStates = ['dark', 'light', 'auto'];
+    const themeIcons = { light: '☀️', dark: '🌙', auto: '🌗' };
+
+    function updateTheme() {
+        let preference = localStorage.getItem('theme-preference') || 'auto';
+        let currentTheme;
+
+        if (preference === 'auto') {
+            const hour = new Date().getHours();
+            // Dark mode from 6 PM to 6 AM
+            currentTheme = (hour < 6 || hour >= 18) ? 'dark' : 'light';
+        } else {
+            currentTheme = preference;
+        }
+
+        if (currentTheme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+
+        // Update weather widget color
+        const weatherWidget = document.getElementById('weather-widget-iframe');
+        if (weatherWidget) {
+            const isLight = document.body.classList.contains('light-mode');
+            const currentColor = isLight ? '000000' : 'FFFFFF';
+            const newSrc = `https://widget.tianqiapi.com/?style=tm&skin=pitaya&color=${currentColor}`;
+            if (weatherWidget.src !== newSrc) {
+                weatherWidget.src = newSrc;
+            }
+        }
+        
+        themeToggleBtn.textContent = themeIcons[preference];
+        themeToggleBtn.title = `Theme: ${preference}`;
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        let currentPreference = localStorage.getItem('theme-preference') || 'auto';
+        let nextPreferenceIndex = (themeStates.indexOf(currentPreference) + 1) % themeStates.length;
+        let newPreference = themeStates[nextPreferenceIndex];
+        localStorage.setItem('theme-preference', newPreference);
+        updateTheme();
+    });
+
+    // Initial and periodic theme updates
+    updateTheme();
+    setInterval(updateTheme, 60 * 1000);
+
     loadData();
 });
 
@@ -373,5 +485,28 @@ function updateTime() {
   const now = new Date();
   timeElement.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}` + ` ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 }
-setInterval(updateTime, 1000); updateTime();
+
+function fetchIpAddress() {
+    const ipElement = document.getElementById('ip-address');
+    if (!ipElement) return;
+
+    fetch('https://api.ipify.org?format=json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            ipElement.textContent = data.ip;
+        })
+        .catch(error => {
+            console.error('Error fetching IP address:', error);
+            ipElement.textContent = 'IP Not Available';
+        });
+}
+
+setInterval(updateTime, 1000); 
+updateTime();
+fetchIpAddress();
 
