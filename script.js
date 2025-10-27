@@ -86,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const origin = new URL(d.url).origin;
                         const faviconUrls = [
                             `${origin}/favicon.ico`,
-                            `${origin}/favicon.svg`,
                             `${origin}/favicon.png`
                         ];
 
