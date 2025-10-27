@@ -72,7 +72,41 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                itemEnter.append('img').attr('src', d => d.icon || `https://www.google.com/s2/favicons?domain=${new URL(d.url).hostname}`).on('error', function() { this.src = 'icon.svg'; });
+                itemEnter.append('img').each(function(d) {
+                    const img = this;
+                    const defaultIcon = 'icon.png';
+
+                    if (d.icon) {
+                        img.src = d.icon;
+                        img.onerror = () => { img.src = defaultIcon; };
+                        return;
+                    }
+
+                    try {
+                        const origin = new URL(d.url).origin;
+                        const faviconUrls = [
+                            `${origin}/favicon.ico`,
+                            `${origin}/favicon.svg`,
+                            `${origin}/favicon.png`
+                        ];
+
+                        let currentAttempt = 0;
+
+                        function tryNext() {
+                            if (currentAttempt < faviconUrls.length) {
+                                img.src = faviconUrls[currentAttempt];
+                                currentAttempt++;
+                            } else {
+                                img.src = defaultIcon;
+                            }
+                        }
+
+                        img.onerror = tryNext;
+                        tryNext();
+                    } catch (e) {
+                        img.src = defaultIcon;
+                    }
+                });
                 itemEnter.append('span').attr('class', 'item-name').text(d => d.name);
                 itemEnter.append('div').attr('class', 'item-tags').append('span').attr('class', 'tag').text(d => d.group);
                 
