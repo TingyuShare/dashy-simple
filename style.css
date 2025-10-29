@@ -12,7 +12,14 @@ body {
     color: var(--text-color);
     margin: 0;
     padding: 1rem;
+    cursor: auto;
 }
+
+*:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewport="0 0 100 100" style="fill:black;font-size:40px;"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle">🌗</text></svg>') 25 25, auto !important;
+}
+
+
 
 .controls {
     display: flex;
@@ -42,7 +49,6 @@ button, input[type="text"], input[type="url"], select {
 }
 
 button {
-    cursor: pointer;
     background-color: var(--primary-color);
     border: none;
     font-weight: 500;
@@ -94,7 +100,6 @@ button:hover {
     border: 1px solid var(--border-color);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
-    cursor: pointer;
 }
 
 .dashboard-item:hover {
@@ -114,7 +119,6 @@ button:hover {
     justify-content: center;
     background-color: transparent;
     border: 2px dashed var(--border-color);
-    cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     min-height: 150px;
 }
@@ -274,7 +278,6 @@ dialog::backdrop {
     width: 50px;
     height: 50px;
     border-radius: 12px;
-    cursor: pointer;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
     display: flex;
     justify-content: center;

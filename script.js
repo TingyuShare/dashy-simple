@@ -450,6 +450,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('light-mode');
         }
 
+        setGlobalCursor(currentTheme);
+
         // Update weather widget color
         const weatherWidget = document.getElementById('weather-widget-iframe');
         if (weatherWidget) {
@@ -463,6 +465,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         themeToggleBtn.textContent = themeIcons[preference];
         themeToggleBtn.title = `Theme: ${preference}`;
+    }
+
+    function setGlobalCursor(theme) {
+        const cursorIcon = theme === 'light' ? '☀️' : '🌙';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewport="0 0 100 100" style="fill:black;font-size:40px;"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle">${cursorIcon}</text></svg>`;
+        const encodedSvg = encodeURIComponent(svg);
+        document.documentElement.style.setProperty('cursor', `url('data:image/svg+xml;utf8,${encodedSvg}') 25 25, auto`, 'important');
     }
 
     themeToggleBtn.addEventListener('click', () => {
