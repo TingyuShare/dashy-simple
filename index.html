@@ -56,9 +56,11 @@
                 <option value="auth">Auth Popup</option>
             </select>
             
-            <label for="edit-icon">Icon URL / Emoji (optional):</label>
-            <input type="text" id="edit-icon">
-            <small>If empty, favicon will be fetched automatically.</small>
+            <div id="icon-form-row">
+                <label for="edit-icon">Icon URL / Emoji (optional):</label>
+                <input type="text" id="edit-icon">
+                <small>If empty, favicon will be fetched automatically.</small>
+            </div>
             
             <label for="edit-tag-select">Group:</label>
             <select id="edit-tag-select" required>
@@ -67,13 +69,11 @@
 
             <div id="subgroup-form-row" style="display: none;">
                 <label for="edit-subgroup">Subgroup:</label>
-                <input type="text" id="edit-subgroup">
+                <input type="text" id="edit-subgroup" list="subgroup-list">
+                <datalist id="subgroup-list"></datalist>
             </div>
 
-            <div class="form-row">
-                <label for="edit-plays-audio">Audio:</label>
-                <input type="checkbox" id="edit-plays-audio">
-            </div>
+            
             
             <div class="modal-buttons">
                 <button type="submit">Save</button>

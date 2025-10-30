@@ -49,7 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGrid(data) {
         gridDashboard.html(''); // Clear the dashboard
 
-        const itemsBySubgroup = d3.group(data, d => d.subgroup);
+        const itemsBySubgroup = d3.group(data, d => {
+            if (d.group === 'mini-program' && !d.subgroup) {
+                return '未分类'; // Assign a default subgroup name during grouping
+            }
+            return d.subgroup; // Return existing subgroup or undefined
+        });
 
         // 1. Render items WITHOUT a subgroup
         const noSubgroupItems = itemsBySubgroup.get(undefined) || [];
@@ -278,13 +283,44 @@ document.addEventListener('DOMContentLoaded', () => {
         populateGroupSelect();
         const typeSelect = document.getElementById('edit-type-select');
         const subgroupRow = document.getElementById('subgroup-form-row');
+        const groupSelectEl = document.getElementById('edit-tag-select');
+        const subgroupDatalist = document.getElementById('subgroup-list');
+        const iconRow = document.getElementById('icon-form-row');
+
+        // Populate subgroup datalist with existing subgroups for mini-programs
+        const miniProgramSubgroups = [...new Set(appData.items
+            .filter(i => i.group === 'mini-program' && i.subgroup)
+            .map(i => i.subgroup))];
+        subgroupDatalist.innerHTML = '';
+        miniProgramSubgroups.forEach(subgroup => {
+            subgroupDatalist.appendChild(new Option(subgroup));
+        });
+
         typeSelect.innerHTML = '';
 
-        const toggleSubgroupField = () => {
-            subgroupRow.style.display = (typeSelect.value === 'qrcode') ? 'block' : 'none';
+        const updateModalOptions = () => {
+            const selectedType = typeSelect.value;
+            const isQrCode = selectedType === 'qrcode';
+            const isRss = selectedType === 'rss';
+            const isAuth = selectedType === 'auth';
+
+            // Handle visibility of special fields
+            iconRow.style.display = isAuth ? 'block' : 'none';
+            subgroupRow.style.display = isQrCode ? 'block' : 'none';
+
+            // Handle group dropdown locking
+            if (isQrCode) {
+                groupSelectEl.disabled = true;
+                groupSelectEl.value = 'mini-program';
+            } else if (isRss) {
+                groupSelectEl.disabled = true;
+                groupSelectEl.value = 'RSS';
+            } else {
+                groupSelectEl.disabled = false;
+            }
         };
 
-        typeSelect.onchange = toggleSubgroupField;
+        typeSelect.onchange = updateModalOptions;
 
         if (item) {
             typeSelect.add(new Option('Link (New Tab)', 'link'));
@@ -296,9 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('edit-url').value = item.url;
             document.getElementById('edit-icon').value = item.icon || '';
             typeSelect.value = item.type || 'link';
-            document.getElementById('edit-tag-select').value = item.group;
+            groupSelectEl.value = item.group;
             document.getElementById('edit-subgroup').value = item.subgroup || '';
-            document.getElementById('edit-plays-audio').checked = item.playsAudio || false;
+            
         } else {
             document.getElementById('edit-index').value = -1;
             document.getElementById('edit-subgroup').value = '';
@@ -313,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        toggleSubgroupField();
+        updateModalOptions();
         modal.showModal();
     }
 
@@ -349,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: document.getElementById('edit-icon').value, 
             type: type, 
             group: document.getElementById('edit-tag-select').value,
-            playsAudio: document.getElementById('edit-plays-audio').checked
+            
         };
 
         if (type === 'qrcode') {
