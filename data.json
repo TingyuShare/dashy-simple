@@ -5,9 +5,37 @@
     "Social",
     "Tools",
     "Internal",
-    "RSS"
+    "RSS",
+    "mini-program"
   ],
   "items": [
+    {
+      "name": "微信支付",
+      "url": "wxp://f2f0dd16-3498-41a3-9699-a903b75d9494",
+      "icon": "",
+      "group": "mini-program",
+      "subgroup": "常用工具",
+      "type": "qrcode",
+      "logo": "icon.png"
+    },
+    {
+      "name": "支付宝",
+      "url": "https://qr.alipay.com/fkx123456789",
+      "icon": "",
+      "group": "mini-program",
+      "subgroup": "常用工具",
+      "type": "qrcode",
+      "logo": "icon.png"
+    },
+    {
+      "name": "京东",
+      "url": "https://m.jd.com",
+      "icon": "",
+      "group": "mini-program",
+      "subgroup": "生活服务",
+      "type": "qrcode",
+      "logo": "icon.png"
+    },
     {
       "name": "Google",
       "url": "https://google.com",
@@ -22,13 +50,7 @@
       "group": "Development",
       "type": "link"
     },
-    {
-      "name": "Wikipedia",
-      "url": "https://www.wikipedia.org/",
-      "icon": "📖",
-      "group": "Internal",
-      "type": "iframe"
-    },
+    
     {
       "name": "Google Auth",
       "url": "https://www.google.com",

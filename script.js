@@ -33,12 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderItems() {
         const searchTerm = searchBox.node().value.toLowerCase();
         const filteredItems = appData.items.filter(item => 
-            (!activeGroupFilter || item.group === activeGroupFilter) &&
+            ((!activeGroupFilter && item.group !== 'mini-program' && item.group !== 'RSS') || item.group === activeGroupFilter) &&
             (item.name.toLowerCase().includes(searchTerm) || (item.group && item.group.toLowerCase().includes(searchTerm)))
         );
 
-        const gridItems = filteredItems.filter(d => (d.type || 'link') === 'link');
-        const dockItems = filteredItems.filter(d => d.type === 'iframe' || d.type === 'auth');
+        const gridItems = filteredItems.filter(d => (d.type || 'link') === 'link' || d.type === 'qrcode');
+        const dockItems = filteredItems.filter(d => d.type === 'auth');
         const rssItems = filteredItems.filter(d => d.type === 'rss');
 
         renderGrid(gridItems);
@@ -47,74 +47,94 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderGrid(data) {
-        const renderData = activeGroupFilter === 'RSS' ? data : [...data, { isAddButton: true }];
-        gridDashboard.selectAll('.dashboard-item, .add-item-card').data(renderData, d => d.isAddButton ? '__add_grid__' : d.url)
-            .join(enter => {
-                const enterSelection = enter.append(d => d.isAddButton ? document.createElement('div') : document.createElement('a'));
-                
-                enterSelection.filter(d => d.isAddButton)
-                    .attr('class', 'add-item-card')
-                    .on('click', () => openModal(null, 'grid'))
-                    .append('span').text('+');
+        gridDashboard.html(''); // Clear the dashboard
 
-                const itemEnter = enterSelection.filter(d => !d.isAddButton)
-                    .attr('class', 'dashboard-item')
-                    .attr('href', d => d.url)
-                    .attr('target', '_blank')
-                    .on('contextmenu', (e, d) => {
+        const itemsBySubgroup = d3.group(data, d => d.subgroup);
+
+        // 1. Render items WITHOUT a subgroup
+        const noSubgroupItems = itemsBySubgroup.get(undefined) || [];
+        noSubgroupItems.forEach(d => {
+            const itemEnter = gridDashboard.append('a')
+                .attr('class', 'dashboard-item')
+                .attr('href', d.url)
+                .attr('target', '_blank')
+                .on('contextmenu', (e, item) => {
+                    e.preventDefault();
+                    pickupItem(e.currentTarget, item);
+                })
+                .on('click', (e, item) => {
+                    if (pickedUpItemData) {
                         e.preventDefault();
-                        pickupItem(e.currentTarget, d);
-                    })
-                    .on('click', (e, d) => {
-                        if (pickedUpItemData) {
-                            e.preventDefault();
-                            dropItem(d);
-                        }
-                    });
-
-                itemEnter.append('img').each(function(d) {
-                    const img = this;
-                    const defaultIcon = 'icon.png';
-
-                    if (d.icon) {
-                        img.src = d.icon;
-                        img.onerror = () => { img.src = defaultIcon; };
-                        return;
-                    }
-
-                    try {
-                        const origin = new URL(d.url).origin;
-                        const faviconUrls = [
-                            `${origin}/favicon.ico`,
-                            `${origin}/favicon.png`
-                        ];
-
-                        let currentAttempt = 0;
-
-                        function tryNext() {
-                            if (currentAttempt < faviconUrls.length) {
-                                img.src = faviconUrls[currentAttempt];
-                                currentAttempt++;
-                            } else {
-                                img.src = defaultIcon;
-                            }
-                        }
-
-                        img.onerror = tryNext;
-                        tryNext();
-                    } catch (e) {
-                        img.src = defaultIcon;
+                        dropItem(item);
                     }
                 });
-                itemEnter.append('span').attr('class', 'item-name').text(d => d.name);
-                itemEnter.append('div').attr('class', 'item-tags').append('span').attr('class', 'tag').text(d => d.group);
-                
-                const actions = itemEnter.append('div').attr('class', 'item-actions');
-                actions.append('button').text('✏️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); openModal(d); });
-                actions.append('button').text('🗑️').on('click', (e, d) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
-                
-                return enterSelection;
+
+            itemEnter.append('img').each(function() {
+                const img = this;
+                const defaultIcon = 'icon.png';
+                if (d.icon) {
+                    img.src = d.icon;
+                    img.onerror = () => { img.src = defaultIcon; };
+                    return;
+                }
+                try {
+                    const origin = new URL(d.url).origin;
+                    const faviconUrls = [`${origin}/favicon.ico`, `${origin}/favicon.png`];
+                    let currentAttempt = 0;
+                    function tryNext() {
+                        if (currentAttempt < faviconUrls.length) {
+                            img.src = faviconUrls[currentAttempt];
+                            currentAttempt++;
+                        } else {
+                            img.src = defaultIcon;
+                        }
+                    }
+                    img.onerror = tryNext;
+                    tryNext();
+                } catch (e) {
+                    img.src = defaultIcon;
+                }
             });
+            itemEnter.append('span').attr('class', 'item-name').text(d.name);
+            itemEnter.append('div').attr('class', 'item-tags').append('span').attr('class', 'tag').text(d.group);
+            
+            const actions = itemEnter.append('div').attr('class', 'item-actions');
+            actions.append('button').text('✏️').on('click', (e, item) => { e.preventDefault(); e.stopPropagation(); openModal(d); });
+            actions.append('button').text('🗑️').on('click', (e, item) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
+        });
+
+        // 2. Render items WITH a subgroup
+        itemsBySubgroup.forEach((items, subgroup) => {
+            if (!subgroup) return; // Skip items without a subgroup (already rendered)
+
+            const container = gridDashboard.append('div').attr('class', 'subgroup-container');
+            container.append('h2').attr('class', 'subgroup-title').text(subgroup);
+            const itemsContainer = container.append('div').attr('class', 'subgroup-items');
+
+            items.forEach(d => {
+                const qrItem = itemsContainer.append('div').attr('class', 'qr-code-item');
+                
+                const canvasEl = qrItem.append('canvas').node();
+                
+                QRCode.toCanvas(canvasEl, d.url, { width: 128 }, function (error) {
+                  if (error) console.error('QRCode generation failed:', error)
+                });
+
+                qrItem.append('span').attr('class', 'item-name').text(d.name);
+
+                const actions = qrItem.append('div').attr('class', 'item-actions');
+                actions.append('button').text('✏️').on('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal(d); });
+                actions.append('button').text('🗑️').on('click', (e) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
+            });
+        });
+
+        // 3. Add the '+' button at the end
+        if (activeGroupFilter !== 'RSS' && activeGroupFilter !== 'mini-program') {
+            gridDashboard.append('div')
+                .attr('class', 'add-item-card')
+                .on('click', () => openModal(null, 'grid'))
+                .append('span').text('+');
+        }
     }
 
     function renderDock(data) {
@@ -126,13 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.isAddButton) {
                 iconDiv.html('+').on('click', () => openModal(null, 'dock'));
             } else {
-                iconDiv.classed('active', d.url === activeIframeId).on('click', function() { handleSpecialClick(d, this); });
+                iconDiv.on('click', function() { handleSpecialClick(d, this); });
                 iconDiv.append('span').html(d.icon || '❓');
-                
-                const iframeExists = !iframeContainer.select(`iframe[src="${d.url}"]`).empty();
-                if (d.playsAudio && iframeExists) {
-                    iconDiv.classed('playing-audio', true);
-                }
 
                 const actions = iconDiv.append('div').attr('class', 'item-actions');
                 actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
@@ -228,36 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Other Functions ---
     function handleSpecialClick(d, element) {
-        if (d.type === 'iframe') toggleIframe(d.url);
-        else if (d.type === 'auth') handleAuthClick(d);
+        if (d.type === 'auth') handleAuthClick(d);
     }
 
-    function toggleIframe(url) {
-        const wasActive = (url === activeIframeId);
-
-        // Hide all iframes
-        iframeContainer.selectAll('iframe').classed('visible', false);
-
-        if (!wasActive) {
-            activeIframeId = url;
-            let iframe = iframeContainer.select(`iframe[src="${url}"]`);
-            if (iframe.empty()) {
-                // Iframe doesn't exist, create it
-                iframeContainer.append('iframe')
-                    .attr('class', 'content-iframe visible')
-                    .attr('src', url)
-                    .attr('frameborder', '0');
-            } else {
-                // Iframe exists, just show it
-                iframe.classed('visible', true);
-            }
-        } else {
-            // If it was active, we've already hidden it. So just deactivate it.
-            activeIframeId = null;
-        }
-        
-        render(); // To update the dock icon's active state
-    }
+    
 
     function handleAuthClick(d) {
         const isPopupOpen = authPopup && !authPopup.closed;
@@ -288,11 +277,18 @@ document.addEventListener('DOMContentLoaded', () => {
         modalForm.reset();
         populateGroupSelect();
         const typeSelect = document.getElementById('edit-type-select');
+        const subgroupRow = document.getElementById('subgroup-form-row');
         typeSelect.innerHTML = '';
+
+        const toggleSubgroupField = () => {
+            subgroupRow.style.display = (typeSelect.value === 'qrcode') ? 'block' : 'none';
+        };
+
+        typeSelect.onchange = toggleSubgroupField;
 
         if (item) {
             typeSelect.add(new Option('Link (New Tab)', 'link'));
-            typeSelect.add(new Option('Iframe Window', 'iframe'));
+            typeSelect.add(new Option('QR Code', 'qrcode'));
             typeSelect.add(new Option('Auth Popup', 'auth'));
             typeSelect.add(new Option('RSS Feed', 'rss'));
             document.getElementById('edit-index').value = appData.items.indexOf(item);
@@ -301,30 +297,28 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('edit-icon').value = item.icon || '';
             typeSelect.value = item.type || 'link';
             document.getElementById('edit-tag-select').value = item.group;
+            document.getElementById('edit-subgroup').value = item.subgroup || '';
             document.getElementById('edit-plays-audio').checked = item.playsAudio || false;
         } else {
             document.getElementById('edit-index').value = -1;
+            document.getElementById('edit-subgroup').value = '';
             if (context === 'grid') {
                 typeSelect.add(new Option('Link (New Tab)', 'link'));
+                typeSelect.add(new Option('QR Code', 'qrcode'));
+                typeSelect.add(new Option('RSS Feed', 'rss'));
                 typeSelect.value = 'link';
             } else if (context === 'dock') {
-                typeSelect.add(new Option('Iframe Window', 'iframe'));
                 typeSelect.add(new Option('Auth Popup', 'auth'));
-                typeSelect.value = 'iframe';
+                typeSelect.value = 'auth';
             }
-            typeSelect.add(new Option('RSS Feed', 'rss'));
         }
+        
+        toggleSubgroupField();
         modal.showModal();
     }
 
     function deleteItem(itemToDelete) {
         if (confirm(`Are you sure you want to delete "${itemToDelete.name}"?`)) {
-            if (itemToDelete.type === 'iframe') {
-                iframeContainer.select(`iframe[src="${itemToDelete.url}"]`).remove();
-                if (activeIframeId === itemToDelete.url) {
-                    activeIframeId = null;
-                }
-            }
             appData.items = appData.items.filter(item => item !== itemToDelete);
             saveData(true);
             render();
@@ -348,14 +342,20 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelBtn.on('click', () => modal.close());
     modalForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        const type = document.getElementById('edit-type-select').value;
         const newItem = { 
             name: document.getElementById('edit-name').value, 
             url: document.getElementById('edit-url').value, 
             icon: document.getElementById('edit-icon').value, 
-            type: document.getElementById('edit-type-select').value, 
+            type: type, 
             group: document.getElementById('edit-tag-select').value,
             playsAudio: document.getElementById('edit-plays-audio').checked
         };
+
+        if (type === 'qrcode') {
+            newItem.subgroup = document.getElementById('edit-subgroup').value;
+        }
+
         const index = document.getElementById('edit-index').value;
         if (index > -1) { appData.items[index] = newItem; } else { appData.items.push(newItem); }
         saveData(true); render(); modal.close();
@@ -450,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('light-mode');
         }
 
-        setGlobalCursor(currentTheme);
+        setGlobalCursor(); // Set the new cursor
 
         // Update weather widget color
         const weatherWidget = document.getElementById('weather-widget-iframe');
@@ -467,11 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
         themeToggleBtn.title = `Theme: ${preference}`;
     }
 
-    function setGlobalCursor(theme) {
-        const cursorIcon = theme === 'light' ? '☀️' : '🌙';
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewport="0 0 100 100" style="fill:black;font-size:40px;"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle">${cursorIcon}</text></svg>`;
+    function setGlobalCursor() {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0L20 12L8 14L0 0Z" fill="red" stroke="black" stroke-width="1"/></svg>`;
         const encodedSvg = encodeURIComponent(svg);
-        document.documentElement.style.setProperty('cursor', `url('data:image/svg+xml;utf8,${encodedSvg}') 25 25, auto`, 'important');
+        document.documentElement.style.setProperty('cursor', `url('data:image/svg+xml;utf8,${encodedSvg}') 0 0, auto`, 'important');
     }
 
     themeToggleBtn.addEventListener('click', () => {

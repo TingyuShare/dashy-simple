@@ -15,9 +15,7 @@ body {
     cursor: auto;
 }
 
-*:hover {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewport="0 0 100 100" style="fill:black;font-size:40px;"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle">🌗</text></svg>') 25 25, auto !important;
-}
+
 
 
 
@@ -222,37 +220,7 @@ dialog::backdrop {
     margin-top: 1rem;
 }
 
-/* --- Styles from Iframe Project --- */
 
-#iframe-container {
-    position: fixed;
-    bottom: 100px; /* Position above the dock */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 999;
-    pointer-events: none;
-}
-
-.content-iframe {
-    width: 80vw;
-    height: 75vh;
-    max-width: 1400px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    background-color: var(--surface-color);
-    display: none;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    pointer-events: all;
-}
-
-.content-iframe.visible {
-    display: block;
-    opacity: 1;
-    transform: translateY(0);
-}
 
 /* --- Dock Bar Styles (The Missing Part) --- */
 
@@ -385,4 +353,62 @@ body.item-picked-up .dashboard-item:not(.picked-up):hover {
 
 .rss-feed-header .item-actions {
     position: static;
+}
+
+/* Styles for QR Code Subgroups */
+.subgroup-container {
+    grid-column: 1 / -1; /* Make subgroup span the full width of the grid */
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.subgroup-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid var(--primary-color);
+}
+
+.subgroup-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.qr-code-item {
+    position: relative; /* This is needed for the action buttons */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: var(--text-color);
+    width: 160px; /* Fixed width for consistency */
+    height: 200px; /* Fixed height for consistency */
+}
+
+.qr-code-item .item-name {
+    font-weight: bold;
+    text-align: center;
+}
+
+.qr-code-canvas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    background: #fff;
+    border-radius: 6px;
+}
+
+/* Force red cursor on ALL elements and states */
+* {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0L20 12L8 14L0 0Z" fill="red" stroke="black" stroke-width="1"/></svg>') 0 0, auto !important;
 }
