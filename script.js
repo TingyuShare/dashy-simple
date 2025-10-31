@@ -20,8 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeGroupFilter = null;
     let activeIframeId = null;
     let authPopup = null;
-    let pickedUpItemElement = null;
-    let pickedUpItemData = null;
+    
+    // --- Drag and Drop State ---
+    let longPressTimeout;
+    let isDragging = false;
+    let draggedItemData = null;
+    let draggedItemNode = null;
 
     // --- Core Rendering ---
     function render() {
@@ -51,29 +55,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const itemsBySubgroup = d3.group(data, d => {
             if (d.group === 'mini-program' && !d.subgroup) {
-                return '未分类'; // Assign a default subgroup name during grouping
+                return '未分类'; // Assign a default subgroup name
             }
-            return d.subgroup; // Return existing subgroup or undefined
+            return d.subgroup;
         });
 
-        // 1. Render items WITHOUT a subgroup
-        const noSubgroupItems = itemsBySubgroup.get(undefined) || [];
-        noSubgroupItems.forEach(d => {
-            const itemEnter = gridDashboard.append('a')
-                .attr('class', 'dashboard-item')
-                .attr('href', d.url)
-                .attr('target', '_blank')
-                .on('contextmenu', (e, item) => {
-                    e.preventDefault();
-                    pickupItem(e.currentTarget, item);
-                })
-                .on('click', (e, item) => {
-                    if (pickedUpItemData) {
-                        e.preventDefault();
-                        dropItem(item);
-                    }
-                });
+        const drag = d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended);
 
+        // Render items WITHOUT a subgroup
+        const noSubgroupItems = itemsBySubgroup.get(undefined) || [];
+        const itemSelection = gridDashboard.selectAll('.dashboard-item')
+            .data(noSubgroupItems, d => d.url)
+            .enter()
+            .append('a')
+            .attr('class', 'dashboard-item draggable-item')
+            .attr('href', d => isDragging ? null : d.url) // Disable link during drag
+            .attr('target', '_blank')
+            .on('click', (e, d) => {
+                if (isDragging) {
+                    e.preventDefault();
+                }
+            })
+            .call(drag);
+        
+        itemSelection.each(function(d) {
+            const itemEnter = d3.select(this);
             itemEnter.append('img').each(function() {
                 const img = this;
                 const defaultIcon = 'icon.png';
@@ -108,16 +117,20 @@ document.addEventListener('DOMContentLoaded', () => {
             actions.append('button').text('🗑️').on('click', (e, item) => { e.preventDefault(); e.stopPropagation(); deleteItem(d); });
         });
 
-        // 2. Render items WITH a subgroup
+
+        // Render items WITH a subgroup
         itemsBySubgroup.forEach((items, subgroup) => {
-            if (!subgroup) return; // Skip items without a subgroup (already rendered)
+            if (!subgroup) return;
 
             const container = gridDashboard.append('div').attr('class', 'subgroup-container');
             container.append('h2').attr('class', 'subgroup-title').text(subgroup);
             const itemsContainer = container.append('div').attr('class', 'subgroup-items');
 
             items.forEach(d => {
-                const qrItem = itemsContainer.append('div').attr('class', 'qr-code-item');
+                const qrItem = itemsContainer.append('div')
+                    .attr('class', 'qr-code-item draggable-item')
+                    .datum(d)
+                    .call(drag);
                 
                 const canvasEl = qrItem.append('canvas').node();
                 
@@ -133,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // 3. Add the '+' button at the end
+        // Add the '+' button at the end
         if (activeGroupFilter !== 'RSS' && activeGroupFilter !== 'mini-program') {
             gridDashboard.append('div')
                 .attr('class', 'add-item-card')
@@ -141,30 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 .append('span').text('+');
         }
     }
-
-    function renderDock(data) {
-        dockContainer.html('');
-        const renderData = [...data, { isAddButton: true }];
-
-        renderData.forEach(d => {
-            const iconDiv = dockContainer.append('div').attr('class', 'dock-icon');
-            if (d.isAddButton) {
-                iconDiv.html('+').on('click', () => openModal(null, 'dock'));
-            } else {
-                iconDiv.on('click', function() { handleSpecialClick(d, this); });
-                iconDiv.append('span').html(d.icon || '❓');
-
-                const actions = iconDiv.append('div').attr('class', 'item-actions');
-                actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
-                actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(d); });
-            }
-        });
-    }
-
+    
     function renderRssFeeds(data) {
         rssFeeds.html('');
+        
+        const drag = d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended);
+
         data.forEach(feed => {
-            const feedContainer = rssFeeds.append('div').attr('class', 'rss-feed');
+            const feedContainer = rssFeeds.append('div')
+                .attr('class', 'rss-feed draggable-item')
+                .datum(feed)
+                .call(drag);
+
             const feedHeader = feedContainer.append('div').attr('class', 'rss-feed-header');
             feedHeader.append('h2').text(feed.name);
             const actions = feedHeader.append('div').attr('class', 'item-actions');
@@ -198,60 +202,111 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Sorting Functions ---
-    function pickupItem(element, data) {
-        if (pickedUpItemElement) {
-            pickedUpItemElement.classList.remove('picked-up');
-        }
+    // --- Drag and Drop Functions ---
+    function dragstarted(event, d) {
+        longPressTimeout = setTimeout(() => {
+            isDragging = true;
+            draggedItemData = d;
+            draggedItemNode = this;
+            d3.select(this).raise().classed('dragging', true);
+        }, 200); // 200ms for long press
+    }
 
-        if (pickedUpItemElement === element) {
-            pickedUpItemElement = null;
-            pickedUpItemData = null;
-            document.body.classList.remove('item-picked-up');
-        } else {
-            pickedUpItemElement = element;
-            pickedUpItemData = data;
-            element.classList.add('picked-up');
-            document.body.classList.add('item-picked-up');
+    function dragged(event, d) {
+        clearTimeout(longPressTimeout);
+        if (!isDragging) return;
+        
+        d3.select(draggedItemNode)
+            .style('left', (event.x - (draggedItemNode.offsetWidth / 2)) + 'px')
+            .style('top', (event.y - (draggedItemNode.offsetHeight / 2)) + 'px');
+
+        // Find drop target
+        const allItems = document.querySelectorAll('.draggable-item');
+        let targetNode = null;
+        allItems.forEach(node => {
+            node.classList.remove('drop-target');
+            if (node !== draggedItemNode) {
+                const rect = node.getBoundingClientRect();
+                if (event.sourceEvent.clientX > rect.left && event.sourceEvent.clientX < rect.right &&
+                    event.sourceEvent.clientY > rect.top && event.sourceEvent.clientY < rect.bottom) {
+                    targetNode = node;
+                }
+            }
+        });
+
+        if (targetNode) {
+            const targetData = d3.select(targetNode).datum();
+            if (draggedItemData.group === targetData.group) {
+                targetNode.classList.add('drop-target');
+            }
         }
     }
 
-    function dropItem(targetItemData) {
-        if (!pickedUpItemData || !targetItemData || pickedUpItemData.url === targetItemData.url) {
-            if (pickedUpItemElement) {
-                pickedUpItemElement.classList.remove('picked-up');
+    function dragended(event, d) {
+        clearTimeout(longPressTimeout);
+        if (!isDragging) return;
+
+        d3.select(draggedItemNode).classed('dragging', false)
+            .style('left', null)
+            .style('top', null);
+
+        const allItems = document.querySelectorAll('.draggable-item');
+        let targetNode = null;
+        allItems.forEach(node => {
+            node.classList.remove('drop-target');
+             if (node !== draggedItemNode) {
+                const rect = node.getBoundingClientRect();
+                if (event.sourceEvent.clientX > rect.left && event.sourceEvent.clientX < rect.right &&
+                    event.sourceEvent.clientY > rect.top && event.sourceEvent.clientY < rect.bottom) {
+                    targetNode = node;
+                }
             }
-            pickedUpItemElement = null;
-            pickedUpItemData = null;
-            document.body.classList.remove('item-picked-up');
-            return;
+        });
+
+        if (targetNode) {
+            const targetData = d3.select(targetNode).datum();
+            if (draggedItemData.group === targetData.group) {
+                const fromIndex = appData.items.findIndex(item => item.url === draggedItemData.url);
+                const toIndex = appData.items.findIndex(item => item.url === targetData.url);
+
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    const [item] = appData.items.splice(fromIndex, 1);
+                    appData.items.splice(toIndex, 0, item);
+                    saveData(true);
+                }
+            }
         }
+        
+        isDragging = false;
+        draggedItemData = null;
+        draggedItemNode = null;
+        render(); // Re-render to apply order and remove styles
+    }
 
-        const fromIndex = appData.items.findIndex(item => item.url === pickedUpItemData.url);
-        const toIndex = appData.items.findIndex(item => item.url === targetItemData.url);
 
-        if (fromIndex > -1 && toIndex > -1) {
-            const [item] = appData.items.splice(fromIndex, 1);
-            appData.items.splice(toIndex, 0, item);
-        }
+    function renderDock(data) {
+        dockContainer.html('');
+        const renderData = [...data, { isAddButton: true }];
 
-        if (pickedUpItemElement) {
-            pickedUpItemElement.classList.remove('picked-up');
-        }
-        pickedUpItemElement = null;
-        pickedUpItemData = null;
-        document.body.classList.remove('item-picked-up');
+        renderData.forEach(d => {
+            const iconDiv = dockContainer.append('div').attr('class', 'dock-icon');
+            if (d.isAddButton) {
+                iconDiv.html('+').on('click', () => openModal(null, 'dock'));
+            } else {
+                iconDiv.on('click', function() { handleSpecialClick(d, this); });
+                iconDiv.append('span').html(d.icon || '❓');
 
-        saveData(true);
-        render();
+                const actions = iconDiv.append('div').attr('class', 'item-actions');
+                actions.append('button').text('✏️').on('click', (e) => { e.stopPropagation(); openModal(d); });
+                actions.append('button').text('🗑️').on('click', (e) => { e.stopPropagation(); deleteItem(d); });
+            }
+        });
     }
 
     // --- Other Functions ---
     function handleSpecialClick(d, element) {
         if (d.type === 'auth') handleAuthClick(d);
     }
-
-    
 
     function handleAuthClick(d) {
         const isPopupOpen = authPopup && !authPopup.closed;
@@ -287,7 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const subgroupDatalist = document.getElementById('subgroup-list');
         const iconRow = document.getElementById('icon-form-row');
 
-        // Populate subgroup datalist with existing subgroups for mini-programs
         const miniProgramSubgroups = [...new Set(appData.items
             .filter(i => i.group === 'mini-program' && i.subgroup)
             .map(i => i.subgroup))];
@@ -304,11 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const isRss = selectedType === 'rss';
             const isAuth = selectedType === 'auth';
 
-            // Handle visibility of special fields
             iconRow.style.display = isAuth ? 'block' : 'none';
             subgroupRow.style.display = isQrCode ? 'block' : 'none';
 
-            // Handle group dropdown locking
             if (isQrCode) {
                 groupSelectEl.disabled = true;
                 groupSelectEl.value = 'mini-program';
@@ -385,7 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: document.getElementById('edit-icon').value, 
             type: type, 
             group: document.getElementById('edit-tag-select').value,
-            
         };
 
         if (type === 'qrcode') {
@@ -461,7 +512,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportBtnRef && exportBtnRef.parentNode) {
         exportBtnRef.parentNode.insertBefore(themeToggleBtn, exportBtnRef.nextSibling);
     } else {
-        // Fallback for safety
         document.body.appendChild(themeToggleBtn);
     }
 
@@ -474,7 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (preference === 'auto') {
             const hour = new Date().getHours();
-            // Dark mode from 6 PM to 6 AM
             currentTheme = (hour < 6 || hour >= 18) ? 'dark' : 'light';
         } else {
             currentTheme = preference;
@@ -486,9 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('light-mode');
         }
 
-        setGlobalCursor(); // Set the new cursor
+        setGlobalCursor();
 
-        // Update weather widget color
         const weatherWidget = document.getElementById('weather-widget-iframe');
         if (weatherWidget) {
             const isLight = document.body.classList.contains('light-mode');
@@ -517,7 +565,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTheme();
     });
 
-    // Initial and periodic theme updates
     updateTheme();
     setInterval(updateTheme, 60 * 1000);
 
@@ -553,4 +600,3 @@ function fetchIpAddress() {
 setInterval(updateTime, 1000); 
 updateTime();
 fetchIpAddress();
-

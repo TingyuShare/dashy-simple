@@ -82,6 +82,7 @@ button:hover {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 1rem;
     padding: 1rem;
+    position: relative; /* Add this for positioning context */
 }
 
 .dashboard-item {
@@ -265,14 +266,16 @@ dialog::backdrop {
     background-color: var(--primary-color);
 }
 
-.dashboard-item.picked-up {
-    background-color: var(--primary-color);
-    transform: scale(1.05);
-    border: 1px solid var(--primary-color);
+.draggable-item.dragging {
+    position: absolute;
+    z-index: 1000;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    pointer-events: none; /* Prevent the dragged item from interfering with drop targets */
 }
 
-body.item-picked-up .dashboard-item:not(.picked-up):hover {
+.draggable-item.drop-target {
     border: 2px dashed var(--primary-color);
+    background-color: rgba(78, 140, 255, 0.1);
 }
 
 
