@@ -407,3 +407,174 @@ dialog::backdrop {
 * {
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0L20 12L8 14L0 0Z" fill="red" stroke="black" stroke-width="1"/></svg>') 0 0, auto !important;
 }
+
+/* --- Calendar Styles --- */
+#calendar-container {
+    padding: 1.5rem;
+    background-color: var(--surface-color);
+    border-radius: 12px;
+    margin: 2rem auto; /* Centered with more vertical margin */
+    max-width: 900px; /* Constrain the width */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.calendar-header button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.8rem;
+    padding: 0.5rem 1rem;
+}
+
+.import-notes-btn,
+.export-notes-btn {
+    font-size: 1rem !important;
+    font-weight: 500;
+    background-color: var(--primary-color) !important;
+    border-radius: 6px;
+    padding: 0.5rem 1rem !important;
+    margin-left: 1rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendar-day-name {
+    text-align: center;
+    font-weight: bold;
+    color: #aaa;
+    padding-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.calendar-day {
+    position: relative;
+    background-color: #3a3a3a;
+    border-radius: 8px;
+    padding-top: 100%; /* Aspect ratio 1:1 */
+    transition: all 0.2s ease;
+    cursor: pointer !important;
+    border: 2px solid transparent;
+}
+
+.calendar-day.other-month {
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.calendar-day .day-number {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    font-size: 1.4rem; /* Made number even bigger */
+    font-weight: 500;
+}
+
+.calendar-day.has-note::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ffc107;
+    box-shadow: 0 0 5px #ffc107;
+}
+
+.calendar-day:not(.other-month):hover {
+    border-color: var(--primary-color);
+    transform: scale(1.05); /* Add a little zoom on hover */
+}
+
+.calendar-day.today {
+    /* Today is now primarily indicated by the number color and border */
+    background-color: var(--surface-color); /* More subtle background */
+    border: 2px solid var(--primary-color);
+}
+
+.calendar-day.today .day-number {
+    font-weight: 700;
+    color: var(--primary-color); /* Highlight the number directly */
+}
+
+#note-modal {
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    min-width: 500px;
+    max-width: 90vw;
+}
+
+/* --- Month Picker Styles --- */
+.month-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns for months */
+    gap: 1rem;
+}
+
+.month-picker-month {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    background-color: #3a3a3a;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.month-picker-month:hover {
+    background-color: #4a4a4a;
+    transform: scale(1.05);
+}
+
+.month-picker-month.current {
+    background-color: rgba(78, 140, 255, 0.2);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+#note-modal::backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+}
+
+#note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#note-content {
+    width: 100%;
+    min-height: 200px;
+    background-color: #3a3a3a;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.note-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}

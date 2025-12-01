@@ -13,13 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const groupSelect = d3.select('#edit-tag-select');
     const importBtn = d3.select('#import-btn');
     const importFileInput = d3.select('#import-file-input');
+    const importNotesInput = d3.select('#import-notes-input');
     const exportBtn = d3.select('#export-btn');
+    const calendarContainer = d3.select('#calendar-container');
+    const noteModal = document.getElementById('note-modal');
+    const noteForm = document.getElementById('note-form');
+    const cancelNoteBtn = document.getElementById('cancel-note-btn');
+
 
     // --- App State ---
     let appData = { items: [], groups: [] };
     let activeGroupFilter = null;
     let activeIframeId = null;
     let authPopup = null;
+    let calendarDate = new Date();
     
     // --- Drag and Drop State ---
     let longPressTimeout;
@@ -36,8 +43,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderItems() {
         const searchTerm = searchBox.node().value.toLowerCase();
+
+        // Handle Calendar View
+        if (activeGroupFilter === 'Cal') {
+            gridDashboard.style('display', 'none');
+            rssFeeds.style('display', 'none');
+            dockContainer.style('display', 'none');
+            calendarContainer.style('display', 'block');
+            renderCalendar();
+            return;
+        } else {
+            gridDashboard.style('display', 'grid');
+            rssFeeds.style('display', 'grid');
+            dockContainer.style('display', 'flex');
+            calendarContainer.style('display', 'none');
+        }
+
         const filteredItems = appData.items.filter(item => 
-            ((!activeGroupFilter && item.group !== 'mini-program' && item.group !== 'RSS') || item.group === activeGroupFilter) &&
+            ((!activeGroupFilter && item.group !== 'mini-program' && item.group !== 'RSS' && item.group !== 'Cal') || item.group === activeGroupFilter) &&
             (item.name.toLowerCase().includes(searchTerm) || (item.group && item.group.toLowerCase().includes(searchTerm)))
         );
 
@@ -422,6 +445,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedData = localStorage.getItem('dashboardData');
         if (savedData) { appData = JSON.parse(savedData); }
         else { try { const res = await fetch('data.json'); appData = await res.json(); } catch (e) { appData = { items: [], groups: [] }; } }
+
+        // --- Fix for ensuring "Cal" group exists ---
+        if (!appData.groups.includes('Cal')) {
+            appData.groups.push('Cal');
+            saveData(true); // Silently save the updated groups
+        }
+        // --- End of fix ---
+
         render();
     }
 
@@ -450,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.on('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' })); a.download = 'dashboard-config.json'; a.click(); URL.revokeObjectURL(a.href); });
     importBtn.on('click', () => importFileInput.node().click());
     importFileInput.on('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const importedData = JSON.parse(e.target.result); if (importedData.items && importedData.groups) { appData = importedData; saveData(true); render(); alert('Success!'); } else { alert('Invalid file.'); } } catch (error) { alert('Error parsing file.'); } }; reader.readAsText(file); });
+    importNotesInput.on('change', importNotes);
     window.addEventListener('message', (event) => { if (event.data && event.data.authSuccess) { if (authPopup) authPopup.close(); } }, false);
 
     // --- Theme Switcher (v3) ---
@@ -567,6 +599,204 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateTheme();
     setInterval(updateTheme, 60 * 1000);
+
+    // --- Calendar Functions ---
+    function renderCalendar() {
+        calendarContainer.html(''); // Clear previous render
+
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+
+        const header = calendarContainer.append('div').attr('class', 'calendar-header');
+        header.append('button').text('⬅️').on('click', () => {
+            calendarDate.setMonth(month - 1);
+            renderCalendar();
+        });
+        header.append('h2').text(new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(calendarDate))
+            .style('cursor', 'pointer')
+            .on('click', renderMonthPicker);
+        header.append('button').text('➡️').on('click', () => {
+            calendarDate.setMonth(month + 1);
+            renderCalendar();
+        });
+        header.append('button').attr('class', 'import-notes-btn').text('Import').on('click', () => importNotesInput.node().click());
+        header.append('button').attr('class', 'export-notes-btn').text('Export').on('click', exportNotes);
+
+        const grid = calendarContainer.append('div').attr('class', 'calendar-grid');
+
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayNames.forEach(name => {
+            grid.append('div').attr('class', 'calendar-day-name').text(name);
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+
+        // Days from previous month
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            const day = grid.append('div').attr('class', 'calendar-day other-month');
+            day.append('span').attr('class', 'day-number').text(daysInPrevMonth - firstDayOfMonth + i + 1);
+        }
+
+        // Days of the current month
+        for (let i = 1; i <= daysInMonth; i++) {
+            const date = new Date(year, month, i);
+            const dateKey = `${year}${String(month + 1).padStart(2, '0')}${String(i).padStart(2, '0')}`;
+            
+            const day = grid.append('div').attr('class', 'calendar-day')
+                .on('click', () => openNoteModal(date));
+
+            day.append('span').attr('class', 'day-number').text(i);
+
+            if (year === today.getFullYear() && month === today.getMonth() && i === today.getDate()) {
+                day.classed('today', true);
+            }
+            if (localStorage.getItem(`note_${dateKey}`)) {
+                day.classed('has-note', true);
+            }
+        }
+
+        // Days from next month
+        const totalDays = firstDayOfMonth + daysInMonth;
+        const nextMonthDays = (7 - (totalDays % 7)) % 7;
+        for (let i = 1; i <= nextMonthDays; i++) {
+            const day = grid.append('div').attr('class', 'calendar-day other-month');
+            day.append('span').attr('class', 'day-number').text(i);
+        }
+    }
+
+    function renderMonthPicker() {
+        calendarContainer.html(''); // Clear previous render
+        const year = calendarDate.getFullYear();
+
+        const header = calendarContainer.append('div').attr('class', 'calendar-header');
+        header.append('button').text('⬅️').on('click', () => {
+            calendarDate.setFullYear(year - 1);
+            renderMonthPicker();
+        });
+        header.append('h2').text(year);
+        header.append('button').text('➡️').on('click', () => {
+            calendarDate.setFullYear(year + 1);
+            renderMonthPicker();
+        });
+
+        const grid = calendarContainer.append('div').attr('class', 'month-picker-grid');
+        const today = new Date();
+
+        for (let i = 0; i < 12; i++) {
+            const monthName = new Date(year, i).toLocaleString('en-us', { month: 'long' });
+            const monthDiv = grid.append('div')
+                .attr('class', 'month-picker-month')
+                .text(monthName)
+                .on('click', () => {
+                    calendarDate.setMonth(i);
+                    renderCalendar();
+                });
+            
+            if (year === today.getFullYear() && i === today.getMonth()) {
+                monthDiv.classed('current', true);
+            }
+        }
+    }
+
+    function importNotes(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const newNotes = JSON.parse(e.target.result);
+                if (typeof newNotes !== 'object' || newNotes === null) {
+                    throw new Error('Invalid JSON format.');
+                }
+
+                const existingKeys = Object.keys(newNotes).filter(dateKey => localStorage.getItem(`note_${dateKey}`));
+                
+                let shouldOverwrite = true;
+                if (existingKeys.length > 0) {
+                    shouldOverwrite = confirm(`${existingKeys.length} note(s) already exist. Do you want to overwrite them?`);
+                }
+
+                let importedCount = 0;
+                for (const dateKey in newNotes) {
+                    if (Object.prototype.hasOwnProperty.call(newNotes, dateKey)) {
+                        const storageKey = `note_${dateKey}`;
+                        if (!localStorage.getItem(storageKey) || shouldOverwrite) {
+                            localStorage.setItem(storageKey, newNotes[dateKey]);
+                            importedCount++;
+                        }
+                    }
+                }
+                
+                alert(`${importedCount} note(s) imported successfully!`);
+                renderCalendar();
+
+            } catch (error) {
+                alert(`Error importing notes: ${error.message}`);
+            } finally {
+                // Reset file input to allow importing the same file again
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function exportNotes() {
+        const notes = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('note_')) {
+                const date = key.substring(5); // Remove "note_" prefix
+                notes[date] = localStorage.getItem(key);
+            }
+        }
+
+        if (Object.keys(notes).length === 0) {
+            alert('No notes to export.');
+            return;
+        }
+
+        const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'calendar_notes.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function openNoteModal(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const day = date.getDate();
+        const dateKey = `${year}${String(month + 1).padStart(2, '0')}${String(day).padStart(2, '0')}`;
+
+        document.getElementById('note-modal-title').textContent = `Note for ${date.toLocaleDateString()}`;
+        document.getElementById('note-date-key').value = dateKey;
+        document.getElementById('note-content').value = localStorage.getItem(`note_${dateKey}`) || '';
+        noteModal.showModal();
+    }
+
+    noteForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const dateKey = document.getElementById('note-date-key').value;
+        const content = document.getElementById('note-content').value;
+
+        if (content) {
+            localStorage.setItem(`note_${dateKey}`, content);
+        } else {
+            localStorage.removeItem(`note_${dateKey}`);
+        }
+        noteModal.close();
+        renderCalendar(); // Re-render to show/hide the note indicator
+    });
+
+    cancelNoteBtn.addEventListener('click', () => {
+        noteModal.close();
+    });
+
 
     loadData();
 });

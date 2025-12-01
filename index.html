@@ -20,6 +20,7 @@
         <div class="control-group">
             <button id="import-btn">Import Config</button>
             <input type="file" id="import-file-input" accept=".json" style="display: none;">
+            <input type="file" id="import-notes-input" accept=".json" style="display: none;">
             <button id="export-btn">Export Config</button>
         </div>
     </header>
@@ -31,6 +32,10 @@
     <main id="dashboard">
         <!-- D3.js will render dashboard items here -->
     </main>
+
+    <div id="calendar-container" style="display: none;">
+        <!-- Calendar will be rendered here -->
+    </div>
 
     <div id="rss-feeds"></div>
 
@@ -78,6 +83,18 @@
             <div class="modal-buttons">
                 <button type="submit">Save</button>
                 <button type="button" id="cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="note-modal">
+        <form id="note-form">
+            <h2 id="note-modal-title"></h2>
+            <input type="hidden" id="note-date-key">
+            <textarea id="note-content" placeholder="Write your note for this day..."></textarea>
+            <div class="note-modal-buttons">
+                <button type="submit">Save</button>
+                <button type="button" id="cancel-note-btn">Cancel</button>
             </div>
         </form>
     </dialog>
