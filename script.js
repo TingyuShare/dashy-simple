@@ -11,14 +11,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalForm = document.getElementById('edit-form');
     const cancelBtn = d3.select('#cancel-btn');
     const groupSelect = d3.select('#edit-tag-select');
-    const importBtn = d3.select('#import-btn');
     const importFileInput = d3.select('#import-file-input');
     const importNotesInput = d3.select('#import-notes-input');
-    const exportBtn = d3.select('#export-btn');
     const calendarContainer = d3.select('#calendar-container');
     const noteModal = document.getElementById('note-modal');
     const noteForm = document.getElementById('note-form');
     const cancelNoteBtn = document.getElementById('cancel-note-btn');
+
+    // --- Sync Modal Elements ---
+    const syncBtn = d3.select('#sync-btn');
+    const syncModal = document.getElementById('sync-modal');
+    const syncForm = document.getElementById('sync-form');
+    const cancelSyncBtn = d3.select('#cancel-sync-btn');
+    const importSyncBtn = d3.select('#import-sync-btn');
+    const exportSyncBtn = d3.select('#export-sync-btn');
+    const cloudSyncFields = d3.select('#cloud-sync-fields');
+    const syncKeyInput = d3.select('#sync-key');
 
 
     // --- App State ---
@@ -478,9 +486,168 @@ document.addEventListener('DOMContentLoaded', () => {
         if (index > -1) { appData.items[index] = newItem; } else { appData.items.push(newItem); }
         saveData(true); render(); modal.close();
     });
-    exportBtn.on('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' })); a.download = 'dashboard-config.json'; a.click(); URL.revokeObjectURL(a.href); });
-    importBtn.on('click', () => importFileInput.node().click());
-    importFileInput.on('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const importedData = JSON.parse(e.target.result); if (importedData.items && importedData.groups) { appData = importedData; saveData(true); render(); alert('Success!'); } else { alert('Invalid file.'); } } catch (error) { alert('Error parsing file.'); } }; reader.readAsText(file); });
+
+    // --- New Sync Modal Logic ---
+    syncBtn.on('click', () => {
+        const savedKey = localStorage.getItem('syncKey');
+        if (savedKey) {
+            syncKeyInput.node().value = savedKey;
+            syncForm.elements['sync-type'].value = 'cloud';
+            cloudSyncFields.style('display', 'block');
+        } else {
+            syncForm.elements['sync-type'].value = 'local';
+            cloudSyncFields.style('display', 'none');
+        }
+        syncModal.showModal()
+    });
+    cancelSyncBtn.on('click', () => syncModal.close());
+
+    syncForm.elements['sync-type'].forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            cloudSyncFields.style('display', e.target.value === 'cloud' ? 'block' : 'none');
+        });
+    });
+
+    importSyncBtn.on('click', () => {
+        const syncType = syncForm.elements['sync-type'].value;
+        if (syncType === 'local') {
+            importFileInput.node().click();
+        } else {
+            importFromCloud();
+        }
+    });
+
+    exportSyncBtn.on('click', () => {
+        const syncType = syncForm.elements['sync-type'].value;
+        if (syncType === 'local') {
+            exportLocal();
+        } else {
+            exportToCloud();
+        }
+    });
+
+    function exportLocal() {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }));
+        a.download = 'dashboard-config.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        syncModal.close();
+    }
+
+    async function exportToCloud() {
+        const key = syncKeyInput.node().value;
+        if (!key || !key.includes('#')) {
+            alert('Invalid Sync Key format. Expected: backupId#subHash');
+            return;
+        }
+        const [backupId, subHash] = key.split('#');
+        if (!backupId || !subHash) {
+            alert('Invalid Sync Key. Both backupId and subHash are required.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://dashy-worker.tingyuw.workers.dev`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userData: appData,
+                    backupId: backupId,
+                    subHash: subHash
+                })
+            });
+
+            if (response.ok) {
+                localStorage.setItem('syncKey', key); // Save key on success
+                alert('Configuration exported to cloud successfully!');
+                syncModal.close();
+            } else {
+                const errorData = await response.json();
+                alert(`Error exporting to cloud: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error('Cloud export error:', error);
+            alert('An unexpected error occurred during cloud export.');
+        }
+    }
+
+    async function importFromCloud() {
+        const key = syncKeyInput.node().value;
+        if (!key || !key.includes('#')) {
+            alert('Invalid Sync Key format. Expected: backupId#subHash');
+            return;
+        }
+        const [backupId, subHash] = key.split('#');
+        if (!backupId || !subHash) {
+            alert('Invalid Sync Key. Both backupId and subHash are required.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://dashy-worker.tingyuw.workers.dev?backupId=${backupId}&subHash=${subHash}`, {
+                method: 'GET'
+            });
+
+            if (response.ok) {
+                const importedData = await response.json();
+                const userData = (importedData.userData && importedData.userData.userData) 
+                               ? importedData.userData.userData 
+                               : importedData.userData;
+
+                if (userData && userData.items && userData.groups) {
+                    appData = userData;
+                    saveData(true);
+                    localStorage.setItem('syncKey', key); // Save key on success
+
+                    // --- Fix for ensuring "Cal" group exists ---
+                    if (!appData.groups.includes('Cal')) {
+                        appData.groups.push('Cal');
+                        saveData(true); // Silently save the updated groups
+                    }
+                    // --- End of fix ---
+                    
+                    render();
+                    alert('Configuration imported from cloud successfully!');
+                    syncModal.close();
+                } else {
+                    alert('Invalid data structure in cloud backup.');
+                }
+            } else {
+                const errorData = await response.json();
+                alert(`Error importing from cloud: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error('Cloud import error:', error);
+            alert('An unexpected error occurred during cloud import.');
+        }
+    }
+
+    importFileInput.on('change', (event) => { 
+        const file = event.target.files[0]; 
+        if (!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = (e) => { 
+            try { 
+                const importedData = JSON.parse(e.target.result); 
+                if (importedData.items && importedData.groups) { 
+                    appData = importedData; 
+                    saveData(true); 
+                    render(); 
+                    alert('Success!'); 
+                    syncModal.close();
+                } else { 
+                    alert('Invalid file.'); 
+                } 
+            } catch (error) { 
+                alert('Error parsing file.'); 
+            } 
+        }; 
+        reader.readAsText(file); 
+    });
+
     importNotesInput.on('change', importNotes);
     window.addEventListener('message', (event) => { if (event.data && event.data.authSuccess) { if (authPopup) authPopup.close(); } }, false);
 
@@ -540,9 +707,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggleBtn = document.createElement('button');
     themeToggleBtn.id = 'theme-toggle-btn';
     
-    const exportBtnRef = document.getElementById('export-btn');
-    if (exportBtnRef && exportBtnRef.parentNode) {
-        exportBtnRef.parentNode.insertBefore(themeToggleBtn, exportBtnRef.nextSibling);
+    const syncBtnRef = document.getElementById('sync-btn');
+    if (syncBtnRef && syncBtnRef.parentNode) {
+        syncBtnRef.parentNode.insertBefore(themeToggleBtn, syncBtnRef.nextSibling);
     } else {
         document.body.appendChild(themeToggleBtn);
     }

@@ -18,10 +18,9 @@
             <div id="ip-address" style="font-weight:bold; padding: 0.6rem 1rem; min-width: 160px; text-align: center;">...</div>
         </div>
         <div class="control-group">
-            <button id="import-btn">Import Config</button>
+            <button id="sync-btn">Import / Export</button>
             <input type="file" id="import-file-input" accept=".json" style="display: none;">
             <input type="file" id="import-notes-input" accept=".json" style="display: none;">
-            <button id="export-btn">Export Config</button>
         </div>
     </header>
 
@@ -40,6 +39,29 @@
     <div id="rss-feeds"></div>
 
     <div id="dock-container"></div>
+
+    <dialog id="sync-modal">
+        <form id="sync-form">
+            <h2>Import / Export</h2>
+            <div class="sync-options">
+                <label>
+                    <input type="radio" name="sync-type" value="local" checked> Local File
+                </label>
+                <label>
+                    <input type="radio" name="sync-type" value="cloud"> Cloud Sync
+                </label>
+            </div>
+            <div id="cloud-sync-fields" style="display: none;">
+                <label for="sync-key">Sync Key:</label>
+                <input type="text" id="sync-key" placeholder="backupId#subHash">
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="import-sync-btn">Import</button>
+                <button type="button" id="export-sync-btn">Export</button>
+                <button type="button" id="cancel-sync-btn">Cancel</button>
+            </div>
+        </form>
+    </dialog>
     
 
     <dialog id="edit-modal">
