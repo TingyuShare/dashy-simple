@@ -209,27 +209,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const feedContent = feedContainer.append('div').attr('class', 'rss-content');
             feedContent.text('Loading...');
 
-            fetch(`https://corsproxy.io/${feed.url}`)
-                .then(response => response.text())
-                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-                .then(data => {
-                    feedContent.html('');
-                    const items = data.querySelectorAll("item, entry");
-                    items.forEach(el => {
-                        const isAtom = el.tagName === 'entry';
-                        const title = el.querySelector("title").textContent;
-                        const link = isAtom ? el.querySelector("link").getAttribute('href') : el.querySelector("link").textContent;
-                        const pubDate = el.querySelector(isAtom ? "updated" : "pubDate") ? new Date(el.querySelector(isAtom ? "updated" : "pubDate").textContent).toLocaleDateString() : '';
+            const corsProxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,
+                `https://rss-proxy.vercel.app/?url=${encodeURIComponent(feed.url)}`
+            ];
+            
+            const tryFetch = (proxyIndex = 0) => {
+                if (proxyIndex >= corsProxies.length) {
+                    feedContent.text('Unable to load RSS feed. Check your internet connection or try again later.');
+                    return;
+                }
+                
+                fetch(corsProxies[proxyIndex])
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        return response.text();
+                    })
+                    .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                    .then(data => {
+                        if (data.getElementsByTagName('parsererror').length > 0) {
+                            throw new Error('Invalid RSS/XML format');
+                        }
+                        feedContent.html('');
+                        const items = data.querySelectorAll("item, entry");
+                        if (items.length === 0) {
+                            feedContent.text('No items found in this feed.');
+                            return;
+                        }
+                        items.forEach(el => {
+                            const isAtom = el.tagName === 'entry';
+                            const titleEl = el.querySelector("title");
+                            const title = titleEl ? titleEl.textContent : 'Untitled';
+                            
+                            let link = '';
+                            if (isAtom) {
+                                const linkEl = el.querySelector("link[href]");
+                                link = linkEl ? linkEl.getAttribute('href') : '';
+                            } else {
+                                const linkEl = el.querySelector("link");
+                                link = linkEl ? linkEl.textContent : '';
+                            }
+                            
+                            const pubDateEl = el.querySelector(isAtom ? "updated" : "pubDate");
+                            const pubDate = pubDateEl ? new Date(pubDateEl.textContent).toLocaleDateString() : '';
 
-                        const item = feedContent.append('div').attr('class', 'rss-item');
-                        item.append('h3').append('a').attr('href', link).attr('target', '_blank').text(title);
-                        item.append('span').attr('class', 'rss-date').text(pubDate);
+                            const item = feedContent.append('div').attr('class', 'rss-item');
+                            if (link) {
+                                item.append('h3').append('a').attr('href', link).attr('target', '_blank').text(title);
+                            } else {
+                                item.append('h3').text(title);
+                            }
+                            if (pubDate) {
+                                item.append('span').attr('class', 'rss-date').text(pubDate);
+                            }
+                        });
+                    })
+                    .catch(err => {
+                        console.warn(`Proxy ${proxyIndex} failed:`, err);
+                        tryFetch(proxyIndex + 1);
                     });
-                })
-                .catch(err => {
-                    feedContent.text('Error loading feed.');
-                    console.error(err);
-                });
+            };
+            
+            tryFetch();
         });
     }
 
