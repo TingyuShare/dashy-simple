@@ -211,8 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const corsProxies = [
                 `https://proxy.4040940.xyz/proxy?modify&proxyUrl=${encodeURIComponent(feed.url)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,
-                `https://rss-proxy.vercel.app/?url=${encodeURIComponent(feed.url)}`
+                feed.url
             ];
             
             const tryFetch = (proxyIndex = 0) => {
