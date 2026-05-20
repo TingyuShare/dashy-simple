@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- App State ---
-    let appData = { items: [], groups: [] };
+    let appData = { items: [], groups: [], holidays: {} };
     let activeGroupFilter = null;
     let activeIframeId = null;
     let authPopup = null;
@@ -41,6 +41,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDragging = false;
     let draggedItemData = null;
     let draggedItemNode = null;
+
+    // --- Chinese Holidays Data ---
+    // Holiday data is now loaded from data.json dynamically
+    // Format: { "year": [ { "start": {month, day}, "end": {month, day}, "name": "节日名", "workDays": [{month, day}, ...] }, ... ] }
+    
+    function getHolidayInfo(year, month, day) {
+        // Use dynamic holidays from appData, fallback to empty object
+        const holidayData = appData.holidays || {};
+        
+        // Check specific year ranges first
+        if (holidayData[year]) {
+            for (const range of holidayData[year]) {
+                const start = range.start.month * 100 + range.start.day;
+                const end = range.end.month * 100 + range.end.day;
+                const current = month * 100 + day;
+                
+                if (current >= start && current <= end) {
+                    // Check if it's a work day
+                    const isWorkDay = range.workDays && range.workDays.some(w => w.month === month && w.day === day);
+                    if (isWorkDay) {
+                        return { name: '班', isHoliday: false, isWorkDay: true, holidayName: range.name };
+                    }
+                    return { name: '休', isHoliday: true, isWorkDay: false, holidayName: range.name };
+                }
+            }
+
+            // Check work days (调休补班日) that are outside the holiday range
+            for (const range of holidayData[year]) {
+                if (range.workDays) {
+                    for (const workDay of range.workDays) {
+                        if (workDay.month === month && workDay.day === day) {
+                            return { name: '班', isHoliday: false, isWorkDay: true, holidayName: range.name };
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 
     // --- Core Rendering ---
     function render() {
@@ -491,9 +531,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadData() {
+        // Always load base data from data.json first
+        let dataFromFile = null;
+        try {
+            const res = await fetch('data.json');
+            dataFromFile = await res.json();
+        } catch (e) {
+            console.error('Failed to load data.json:', e);
+        }
+
+        // Then check localStorage and merge
         const savedData = localStorage.getItem('dashboardData');
-        if (savedData) { appData = JSON.parse(savedData); }
-        else { try { const res = await fetch('data.json'); appData = await res.json(); } catch (e) { appData = { items: [], groups: [] }; } }
+        if (savedData) {
+            appData = JSON.parse(savedData);
+            // Merge holidays from data.json
+            if (dataFromFile && dataFromFile.holidays) {
+                appData.holidays = dataFromFile.holidays;
+            }
+        } else if (dataFromFile) {
+            appData = dataFromFile;
+        } else {
+            appData = { items: [], groups: [], holidays: {} };
+        }
+        // --- End of fix ---
 
         // --- Fix for ensuring "Cal" group exists ---
         if (!appData.groups.includes('Cal')) {
@@ -857,6 +917,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 .on('click', () => openNoteModal(date));
 
             day.append('span').attr('class', 'day-number').text(i);
+
+            // Check for Chinese holidays
+            const holidayInfo = getHolidayInfo(year, month + 1, i);
+            if (holidayInfo) {
+                const labelSpan = day.append('span').attr('class', 'holiday-label');
+                if (holidayInfo.isWorkDay) {
+                    day.classed('work-day', true);
+                    labelSpan.attr('class', 'holiday-label work-day-label')
+                        .text(holidayInfo.holidayName + holidayInfo.name);
+                } else if (holidayInfo.isHoliday) {
+                    day.classed('holiday', true);
+                    labelSpan.text(holidayInfo.holidayName + holidayInfo.name);
+                }
+            }
 
             if (year === today.getFullYear() && month === today.getMonth() && i === today.getDate()) {
                 day.classed('today', true);

@@ -467,6 +467,7 @@ dialog::backdrop {
     background-color: #3a3a3a;
     border-radius: 8px;
     padding-top: 100%; /* Aspect ratio 1:1 */
+    padding-bottom: 15px; /* Space for holiday label */
     transition: all 0.2s ease;
     cursor: pointer !important;
     border: 2px solid transparent;
@@ -495,6 +496,41 @@ dialog::backdrop {
     border-radius: 50%;
     background-color: #ffc107;
     box-shadow: 0 0 5px #ffc107;
+}
+
+.calendar-day.holiday {
+    border-color: #ff4757;
+    background-color: #4a1a1a;
+}
+
+.calendar-day.holiday .holiday-label {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: #ff6b7a;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 90%;
+}
+
+/* Work day (调休上班日) styles */
+.calendar-day.work-day {
+    border-color: #ffa502;
+    background-color: #3a3510;
+}
+
+.calendar-day.work-day .holiday-label {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: #ffbe4d;
+    white-space: nowrap;
+    font-weight: bold;
 }
 
 .calendar-day:not(.other-month):hover {
